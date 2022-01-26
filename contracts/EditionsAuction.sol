@@ -18,12 +18,6 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
   using SafeMath for uint256;
   using Counters for Counters.Counter;
 
-  // Curator royalties on each sale
-  uint256 curatorRoyaltyBPS;
-
-  // Curator address
-  address curator;
-
   // minimum time interval before price can drop in seconds
   uint8 minStepTime;
 
@@ -40,21 +34,20 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
       _;
   }
 
-  constructor(address _curator, uint256 _curatorRoyaltyBPS) {
-    // TODO: if curator 0x or curatorRoyaltyBPS 0 don't apply royalties
-    curator = _curator;
-    curatorRoyaltyBPS = _curatorRoyaltyBPS;
+  constructor() {
     minStepTime = 2 * 60; // 2 minutes
   }
 
-  function createAuction (
+  function createAuction(
     address editionContract,
     uint256 startTimestamp,
     uint256 duration,
     uint256 startPrice,
     uint256 endPrice,
-    uint8 numberOfPriceDrops
-  ) public override nonReentrant returns (uint256) {
+    uint8 numberOfPriceDrops,
+    address curator,
+    uint256 curatorRoyaltyBPS
+  ) external override nonReentrant returns (uint256) {
     // TODO: find or get EditionSingleMintable interfaceId so we can check the contract is a match
     // require(IEditionSingleMintable(editionContract).supportsInterface(editionSingleMintableinterfaceId)
     // artist
@@ -79,36 +72,68 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
       creator: creator,
       stepPrice: stepPrice,
       stepTime: stepTime,
-      approved: false // olta will need to approve first
+      approved: false,
+      curator: curator,
+      curatorRoyaltyBPS: curatorRoyaltyBPS
     });
 
     _auctionIdTracker.increment();
 
-    emit AuctionCreated(auctionId, creator, editionContract, startTimestamp, duration, startPrice, endPrice, numberOfPriceDrops);
+    emit AuctionCreated(
+      auctionId,
+      creator,
+      editionContract,
+      startTimestamp,
+      duration,
+      startPrice,
+      endPrice,
+      numberOfPriceDrops,
+      curator,
+      curatorRoyaltyBPS
+    );
+
+    // auto approve auction
+    if(curator == address(0) || curator == creator){
+      auctions[auctionId].approved = true;
+    }
 
     return auctionId;
   }
 
   // Allows curator to approve auctions first
   function setAuctionApproval(uint256 auctionId, bool approved) external override auctionExists(auctionId) {
-    require(msg.sender == curator, "must be curator");
+    require(msg.sender == auctions[auctionId].curator, "must be curator");
     require(block.timestamp < auctions[auctionId].startTimestamp, "Auction has already started");
+    // TODO: see if auction should be cancled/ended if approval is set to false?
+    _approveAuction(auctionId, approved);
   }
 
   function purchase(uint256 auctionId) external payable override auctionExists(auctionId) returns (uint256){
+    require(auctions[auctionId].approved, "Auction has not been approved");
     require(block.timestamp >= auctions[auctionId].startTimestamp, "Auction has not started yet");
-    // TODO: auction must be approved
     require( _numberCanMint(auctionId) != 0, "Sold out");
+
     uint256 salePrice = _getSalePrice(auctionId);
     require(msg.value == salePrice, "Wrong price");
 
     address[] memory toMint = new address[](1);
     toMint[0] = msg.sender;
 
-    // ensure payment is stored in escrow
-    if(msg.value != 0){
-      uint256 curatorFee = msg.value.div(10000).mul(curatorRoyaltyBPS);
-      _asyncTransfer(curator, curatorFee);
+    // if free carry out purchase
+    if(msg.value == 0){
+      emit EditionPurchased(salePrice, msg.sender);
+      return IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
+    }
+
+    // if no curator, add payment to creator
+    if(auctions[auctionId].curator == address(0)){
+      _asyncTransfer(auctions[auctionId].creator, msg.value);
+    }
+
+    // else split payment between curator and creator
+    else {
+      uint256 curatorFee = msg.value.div(10000).mul(auctions[auctionId].curatorRoyaltyBPS);
+      _asyncTransfer(auctions[auctionId].curator, curatorFee);
 
       uint256 creatorFee = msg.value.sub(curatorFee);
       _asyncTransfer(auctions[auctionId].creator, creatorFee);
@@ -132,6 +157,11 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
 
   function getSalePrice(uint256 auctionId) external view override returns (uint256) {
     return _getSalePrice(auctionId);
+  }
+
+  function _approveAuction(uint256 auctionId, bool approved) internal {
+    auctions[auctionId].approved = approved;
+    emit AuctionApprovalUpdated(auctionId, auctions[auctionId].editionContract, approved);
   }
 
   /**
