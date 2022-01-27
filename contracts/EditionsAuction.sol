@@ -94,7 +94,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
 
     // auto approve auction
     if(curator == address(0) || curator == creator){
-      auctions[auctionId].approved = true;
+      _approveAuction(auctionId, true);
     }
 
     return auctionId;
