@@ -48,13 +48,16 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     address curator,
     uint256 curatorRoyaltyBPS
   ) external override nonReentrant returns (uint256) {
+    
     // TODO: find or get EditionSingleMintable interfaceId so we can check the contract is a match
     // require(IEditionSingleMintable(editionContract).supportsInterface(editionSingleMintableinterfaceId)
     // artist
     address creator = IEditionSingleMintable(editionContract).owner();
     require(msg.sender == creator, "Caller must be creator of editions");
     require(startPrice > endPrice, "Start price must be higher then end price");
-
+    if(curator == address(0)){
+      require(curatorRoyaltyBPS == 0, "Royalties would be sent into the void");
+    }
     // The amount the price drops
     uint256 stepPrice = startPrice.sub(endPrice).div(numberOfPriceDrops);
     uint256 stepTime = duration.div(numberOfPriceDrops);
