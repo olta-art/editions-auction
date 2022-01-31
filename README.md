@@ -10,8 +10,8 @@ Olta will use this contract when it is ready but we are keen to see if there is 
 ### TODO's:
 
 - [ ] Make ERC-20 comptable
-- [ ] curator assigned when creating an auction rather than on construction?
-- [ ] curator approval
+- [x] curator assigned when creating an auction rather than on construction?
+- [x] curator approval
 - [ ] full coverage tests
 - [ ] subgraph (in progress)
 - [ ] front-end interface
