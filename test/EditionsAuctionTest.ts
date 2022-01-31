@@ -53,7 +53,9 @@ describe.only("EditionsAuction", () => {
       duration: 60 * 8, // 8 minutes
       startPrice: ethers.utils.parseEther("1.0"),
       endPrice: ethers.utils.parseEther("0.2"),
-      numberOfPriceDrops: 4
+      numberOfPriceDrops: 4,
+      curator: ethers.constants.AddressZero,
+      curatorRoyaltyBPS: 0
     }
 
     const params = {...defaults, ...options}
@@ -64,7 +66,9 @@ describe.only("EditionsAuction", () => {
       params.duration,
       params.startPrice,
       params.endPrice,
-      params.numberOfPriceDrops
+      params.numberOfPriceDrops,
+      params.curator,
+      params.curatorRoyaltyBPS
     )
   }
 
@@ -120,6 +124,41 @@ describe.only("EditionsAuction", () => {
       ).to.be.revertedWith("Step time must be higher than minimuim step time")
     })
 
+    it("reverts if no curator and royalties are not 0", async () => {
+      await expect(
+        createAuction(creator, {
+          curator: ethers.constants.AddressZero,
+          curatorRoyaltyBPS: 1000
+        })
+      ).to.be.revertedWith("Royalties would be sent into the void")
+    })
+
+    it("auto approves if no curator", async () => {
+      expect(
+        await createAuction(creator, {
+          curator: ethers.constants.AddressZero,
+          curatorRoyaltyBPS: 0
+        })
+      ).to.emit(EditionsAuction, "AuctionApprovalUpdated")
+
+      const auction = await EditionsAuction.auctions(0)
+
+      expect(auction.approved).to.eq(true)
+    })
+
+    it("auto approve if curator is creator", async () => {
+      expect(
+        await createAuction(creator, {
+          curator: await creator.getAddress(),
+          curatorRoyaltyBPS: 1000
+        })
+      ).to.emit(EditionsAuction, "AuctionApprovalUpdated")
+      const auction = await EditionsAuction.auctions(0)
+
+      expect(auction.approved).to.eq(true)
+      expect(auction.curatorRoyaltyBPS).to.eq(1000)
+    })
+
     it("creates a auction", async () => {
       const startTime = Math.floor((Date.now() / 1000)) + 60 * 2 // now + 2 mins
 
@@ -139,7 +178,9 @@ describe.only("EditionsAuction", () => {
       expect(auction.numberOfPriceDrops).to.eq(4)
       expect(auction.stepPrice).to.eq(ethers.utils.parseEther("0.2"))
       expect(auction.stepTime).to.eq(60*2)
-      expect(auction.approved).to.eq(false)
+      expect(auction.curator).to.eq(ethers.constants.AddressZero)
+      expect(auction.curatorRoyaltyBPS).to.eq(0)
+      expect(auction.approved).to.eq(true) // auto approves
     })
 
     // TODO: check random params to make sure stepPrice and stepTime always act as expected
@@ -229,12 +270,24 @@ describe.only("EditionsAuction", () => {
       // approve EditionsAuction for minting
       await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
+      // create auction with curator
+      await createAuction(creator, {
+        curator: await curator.getAddress(),
+        curatorRoyaltyBPS: 1000
+      })
+      const auctionWithCurator = await EditionsAuction.auctions(1)
+      // curator approves auction
+      await EditionsAuction.connect(curator).setAuctionApproval(1, true)
+
+      expect(auctionWithCurator.curator).to.eq(await curator.getAddress())
+      expect(auctionWithCurator.curatorRoyaltyBPS).to.eq(1000)
+
       // goto start of auction
-      await mineToTimestamp(auction.startTimestamp)
+      await mineToTimestamp(auctionWithCurator.startTimestamp)
 
       // purchase edition
       await EditionsAuction.connect(collector)
-        .purchase(0, {value: ethers.utils.parseEther("1.0")})
+        .purchase(1, {value: ethers.utils.parseEther("1.0")})
 
       // curator
       expect(
@@ -279,8 +332,13 @@ describe.only("EditionsAuction", () => {
 
     let auction: any
     beforeEach(async () => {
-      await createAuction()
+      await createAuction(creator, {
+        curator: await curator.getAddress(),
+        curatorRoyaltyBPS: 1000
+      })
       auction = await EditionsAuction.auctions(0)
+      // curator approves auction
+      await EditionsAuction.connect(curator).setAuctionApproval(0, true)
     })
 
     // TODO: should revert when balance is 0
@@ -326,6 +384,31 @@ describe.only("EditionsAuction", () => {
       expect(
         (await EditionsAuction.numberCanMint(0)).toNumber()
       ).to.eq(10)
+    })
+  })
+
+  describe("#setAuctionApproval", async () => {
+    beforeEach(async () => {
+      await createAuction(creator, {
+        curator: await curator.getAddress(),
+        curatorRoyaltyBPS: 1000
+      })
+    })
+
+    it("should revert when not curator", async () => {
+      await expect(
+        EditionsAuction.connect(collector).setAuctionApproval(0, true)
+      ).to.be.revertedWith("must be curator")
+    })
+
+    it("should approve", async () => {
+      await expect(
+        EditionsAuction.connect(curator).setAuctionApproval(0, true)
+      ).to.emit(EditionsAuction, "AuctionApprovalUpdated")
+
+      const auction = await EditionsAuction.auctions(0)
+      expect(auction.approved).to.eq(true)
+      expect(auction.curatorRoyaltyBPS).to.eq(1000)
     })
   })
 
@@ -381,17 +464,14 @@ describe.only("EditionsAuction", () => {
       ).to.eq(0)
 
       // check payments
-      // curator
-      expect(
-        await EditionsAuction.paymentsOwed(await curator.getAddress())
-      ).to.eq(ethers.utils.parseEther("0.3"));
-      // creator
       expect(
         await EditionsAuction.paymentsOwed(await creator.getAddress())
-      ).to.eq(ethers.utils.parseEther("2.7"));
+      ).to.eq(ethers.utils.parseEther("3.0"));
 
       // un-pause auto mine
       await setAutoMine(true)
     })
+
+    // TODO: curator auction stress tests
   })
 })

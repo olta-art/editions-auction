@@ -13,6 +13,8 @@ interface IEditionsAuction {
     uint256 stepPrice;
     uint256 stepTime;
     bool approved;
+    address curator;
+    uint256 curatorRoyaltyBPS;
   }
 
   event EditionPurchased(uint256 price, address owner);
@@ -25,7 +27,15 @@ interface IEditionsAuction {
     uint256 duration,
     uint256 startPrice,
     uint256 endPrice,
-    uint8 numberOfPriceDrops
+    uint8 numberOfPriceDrops,
+    address curator,
+    uint256 curatorRoyaltyBPS
+  );
+
+  event AuctionApprovalUpdated(
+    uint256 auctionId,
+    address editionContract,
+    bool approved
   );
 
   function createAuction(
@@ -34,7 +44,9 @@ interface IEditionsAuction {
     uint256 duration,
     uint256 startPrice,
     uint256 endPrice,
-    uint8 numberOfPriceDrops
+    uint8 numberOfPriceDrops,
+    address curator,
+    uint256 curatorRoyaltyBPS
   ) external returns (uint256);
 
   function setAuctionApproval(uint auctionId, bool approved) external;
