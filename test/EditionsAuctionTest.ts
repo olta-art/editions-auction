@@ -124,6 +124,41 @@ describe.only("EditionsAuction", () => {
       ).to.be.revertedWith("Step time must be higher than minimuim step time")
     })
 
+    it("reverts if no curator and royalties are not 0", async () => {
+      await expect(
+        createAuction(creator, {
+          curator: ethers.constants.AddressZero,
+          curatorRoyaltyBPS: 1000
+        })
+      ).to.be.revertedWith("Royalties would be sent into the void")
+    })
+
+    it("auto approves if no curator", async () => {
+      expect(
+        await createAuction(creator, {
+          curator: ethers.constants.AddressZero,
+          curatorRoyaltyBPS: 0
+        })
+      ).to.emit(EditionsAuction, "AuctionApprovalUpdated")
+
+      const auction = await EditionsAuction.auctions(0)
+
+      expect(auction.approved).to.eq(true)
+    })
+
+    it("auto approve if curator is creator", async () => {
+      expect(
+        await createAuction(creator, {
+          curator: await creator.getAddress(),
+          curatorRoyaltyBPS: 1000
+        })
+      ).to.emit(EditionsAuction, "AuctionApprovalUpdated")
+      const auction = await EditionsAuction.auctions(0)
+
+      expect(auction.approved).to.eq(true)
+      expect(auction.curatorRoyaltyBPS).to.eq(1000)
+    })
+
     it("creates a auction", async () => {
       const startTime = Math.floor((Date.now() / 1000)) + 60 * 2 // now + 2 mins
 
@@ -353,10 +388,28 @@ describe.only("EditionsAuction", () => {
   })
 
   describe("#setAuctionApproval", async () => {
-    // TODO: should auto approve if curator 0x
-    // TODO: should auto approve if curator == creator
-    // TODO: should revert if not curator
-    // TODO: should approve
+    beforeEach(async () => {
+      await createAuction(creator, {
+        curator: await curator.getAddress(),
+        curatorRoyaltyBPS: 1000
+      })
+    })
+
+    it("should revert when not curator", async () => {
+      await expect(
+        EditionsAuction.connect(collector).setAuctionApproval(0, true)
+      ).to.be.revertedWith("must be curator")
+    })
+
+    it("should approve", async () => {
+      await expect(
+        EditionsAuction.connect(curator).setAuctionApproval(0, true)
+      ).to.emit(EditionsAuction, "AuctionApprovalUpdated")
+
+      const auction = await EditionsAuction.auctions(0)
+      expect(auction.approved).to.eq(true)
+      expect(auction.curatorRoyaltyBPS).to.eq(1000)
+    })
   })
 
   //TODO: stress test multiple auctions lots of purchases
