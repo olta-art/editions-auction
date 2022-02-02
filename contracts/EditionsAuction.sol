@@ -7,6 +7,7 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import {IERC165} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {PullPayment} from "@openzeppelin/contracts/security/PullPayment.sol";
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
@@ -23,6 +24,18 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
 
   // minimum time interval before price can drop in seconds
   uint8 minStepTime;
+
+  // TODO: should we check for EditionSingleMintable interface id?
+  /*
+    NOTE: As this contract is only ment for EditionSingleMintable type of NFT contract
+    used the function below to get: 0x2fc51e5a
+    but EditionSingleMintable contract supportsInterface does not return true
+   */
+  // function getEditionContractInterfaceId () external view returns (bytes4)  {
+  //   return type(IEditionSingleMintable).interfaceId;
+  // }
+
+  bytes4 constant interfaceId = 0x80ac58cd; // ERC-721 interface
 
   // A mapping of all the auctions currently running
   mapping (uint256 => IEditionsAuction.Auction) public auctions;
@@ -70,9 +83,14 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     address curator,
     uint256 curatorRoyaltyBPS
   ) external override nonReentrant returns (uint256) {
-    // TODO: find or get EditionSingleMintable interfaceId so we can check the contract is a match
-    // require(IEditionSingleMintable(editionContract).supportsInterface(editionSingleMintableinterfaceId)
-    // artist
+    require(
+      IERC165(editionContract).supportsInterface(interfaceId),
+      "Doesn't support NFT interface"
+    );
+
+    // TODO: require(IEditionSingleMintable(editionContract).numberCanMint() != type(uint256).max, "Editions must be a limited number")
+    // TODO: require this contract is approved ??
+
     address creator = IEditionSingleMintable(editionContract).owner();
     require(msg.sender == creator, "Caller must be creator of editions");
     require(startPrice > endPrice, "Start price must be higher then end price");
