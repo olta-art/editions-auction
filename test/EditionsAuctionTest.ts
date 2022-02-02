@@ -6,7 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
   SingleEditionMintableCreator,
   SingleEditionMintable,
-  EditionsAuction
+  EditionsAuction,
 } from "../typechain";
 
 import {
@@ -98,6 +98,17 @@ describe.only("EditionsAuction", () => {
   })
 
   describe("#CreateAuctionDrop()", async () => {
+
+    it("reverts if editions contract doesnt support NFT interface", async () => {
+      const { BadERC721 } = await deployments.fixture([
+        "BadERC721"
+      ]);
+      await expect(
+        createAuction(creator, {
+          editionContract: BadERC721.address
+        })
+      ).to.be.revertedWith("Doesn't support NFT interface")
+    })
 
     it("reverts if caller is not creator", async () => {
       const other = (await ethers.getSigners())[5]
