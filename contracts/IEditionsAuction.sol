@@ -15,6 +15,7 @@ interface IEditionsAuction {
     bool approved;
     address curator;
     uint256 curatorRoyaltyBPS;
+    address auctionCurrency;
   }
 
   event EditionPurchased(uint256 price, address owner);
@@ -29,7 +30,8 @@ interface IEditionsAuction {
     uint256 endPrice,
     uint8 numberOfPriceDrops,
     address curator,
-    uint256 curatorRoyaltyBPS
+    uint256 curatorRoyaltyBPS,
+    address auctionCurrency
   );
 
   event AuctionApprovalUpdated(
@@ -46,18 +48,15 @@ interface IEditionsAuction {
     uint256 endPrice,
     uint8 numberOfPriceDrops,
     address curator,
-    uint256 curatorRoyaltyBPS
+    uint256 curatorRoyaltyBPS,
+    address auctionCurrency
   ) external returns (uint256);
 
   function setAuctionApproval(uint auctionId, bool approved) external;
 
   function getSalePrice(uint256 auctionId) external returns (uint256);
 
-  function purchase(uint256 auctionId) external payable returns (uint256);
-
-  function paymentsOwed(address account) external view returns (uint256);
+  function purchase(uint256 auctionId, uint256 amount) external payable returns (uint256);
 
   function numberCanMint(uint256 auctionId) external view returns (uint256);
-
-  function withdraw(address payable account) external;
 }
