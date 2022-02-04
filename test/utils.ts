@@ -1,5 +1,7 @@
 import { network } from "hardhat";
 import { BigNumber, ContractTransaction } from "ethers";
+import { WETH } from "../typechain";
+import { ethers } from "hardhat";
 
 // Set a timestamp for the next block and mine it
 export const mineToTimestamp = async (timestamp: BigNumber) => {
@@ -15,3 +17,8 @@ export const getEventArguments = async (tx: ContractTransaction, eventName: stri
   const event = receipt.events?.find(event => event.event === eventName)
   return event?.args!
 }
+
+export const deployWETH = async () => {
+  const [deployer] = await ethers.getSigners();
+  return (await (await ethers.getContractFactory("WETH")).deploy()) as WETH;
+};

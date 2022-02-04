@@ -7,6 +7,7 @@ import {
   SingleEditionMintableCreator,
   SingleEditionMintable,
   EditionsAuction,
+  WETH
 } from "../typechain";
 
 import {
@@ -14,6 +15,7 @@ import {
   setAutoMine,
   mineToTimestamp,
   getEventArguments,
+  deployWETH,
 } from "./utils"
 
 describe.only("EditionsAuction", () => {
@@ -23,6 +25,7 @@ describe.only("EditionsAuction", () => {
   let SingleEditonCreator: SingleEditionMintableCreator;
   let EditionsAuction: EditionsAuction;
   let SingleEdition: SingleEditionMintable;
+  let weth: WETH;
 
   const createEdition = async (signer: SignerWithAddress = creator) => {
     const transaction = await SingleEditonCreator.connect(signer).createEdition(
@@ -55,7 +58,8 @@ describe.only("EditionsAuction", () => {
       endPrice: ethers.utils.parseEther("0.2"),
       numberOfPriceDrops: 4,
       curator: ethers.constants.AddressZero,
-      curatorRoyaltyBPS: 0
+      curatorRoyaltyBPS: 0,
+      auctionCurrency: weth.address
     }
 
     const params = {...defaults, ...options}
@@ -68,7 +72,8 @@ describe.only("EditionsAuction", () => {
       params.endPrice,
       params.numberOfPriceDrops,
       params.curator,
-      params.curatorRoyaltyBPS
+      params.curatorRoyaltyBPS,
+      params.auctionCurrency
     )
   }
 
@@ -95,6 +100,7 @@ describe.only("EditionsAuction", () => {
     collector = _collector;
 
     SingleEdition = await createEdition()
+    weth = await deployWETH()
   })
 
   describe("#CreateAuctionDrop()", async () => {
@@ -192,6 +198,7 @@ describe.only("EditionsAuction", () => {
       expect(auction.curator).to.eq(ethers.constants.AddressZero)
       expect(auction.curatorRoyaltyBPS).to.eq(0)
       expect(auction.approved).to.eq(true) // auto approves
+      expect(auction.auctionCurrency).to.eq(weth.address)
     })
 
     // TODO: check random params to make sure stepPrice and stepTime always act as expected
@@ -238,14 +245,16 @@ describe.only("EditionsAuction", () => {
 
   describe("#purchase()", async () => {
     let auction: any
+
     beforeEach(async () => {
       await createAuction()
       auction = await EditionsAuction.auctions(0)
+      await weth.connect(collector).deposit({ value: ethers.utils.parseEther("1.0") });
     })
 
     it("should revert if auction hasn't started yet", async () => {
       await expect(
-        EditionsAuction.purchase(0, {value: ethers.utils.parseEther("1.0")})
+        EditionsAuction.purchase(0, ethers.utils.parseEther("1.0"))
       ).to.be.revertedWith("Auction has not started yet")
     })
 
@@ -254,7 +263,7 @@ describe.only("EditionsAuction", () => {
       await mineToTimestamp(auction.startTimestamp)
 
       await expect(
-         EditionsAuction.purchase(0, {value: ethers.utils.parseEther("0.2")})
+         EditionsAuction.purchase(0, ethers.utils.parseEther("0.2"))
       ).to.be.revertedWith("Wrong price")
     })
 
@@ -266,9 +275,12 @@ describe.only("EditionsAuction", () => {
       // move to when auction starts
       await mineToTimestamp(auction.startTimestamp)
 
+      // approve auction to spend WETH
+      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+
       // purchase
       expect(
-        await EditionsAuction.connect(collector).purchase(0, {value: ethers.utils.parseEther("1.0")})
+        await EditionsAuction.connect(collector).purchase(0, ethers.utils.parseEther("1.0"))
       ).to.emit(EditionsAuction, "EditionPurchased")
 
       // check token balance
@@ -296,18 +308,21 @@ describe.only("EditionsAuction", () => {
       // goto start of auction
       await mineToTimestamp(auctionWithCurator.startTimestamp)
 
+      // approve auction to spend WETH
+      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+
       // purchase edition
       await EditionsAuction.connect(collector)
-        .purchase(1, {value: ethers.utils.parseEther("1.0")})
+        .purchase(1, ethers.utils.parseEther("1.0"))
 
       // curator
       expect(
-        await EditionsAuction.paymentsOwed(await curator.getAddress())
+        await weth.balanceOf(await curator.getAddress())
       ).to.eq(ethers.utils.parseEther("0.1"));
 
-      // creator
+      // // creator
       expect(
-        await EditionsAuction.paymentsOwed(await creator.getAddress())
+        await weth.balanceOf(await creator.getAddress())
       ).to.eq(ethers.utils.parseEther("0.9"));
     })
 
@@ -318,12 +333,17 @@ describe.only("EditionsAuction", () => {
       // move to when auction starts
       await mineToTimestamp(auction.startTimestamp);
 
+      // deposit 10 weth
+      await weth.connect(collector).deposit({ value: ethers.utils.parseEther("10.0") });
+      // approve auction to spend 10 WETH
+      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("10.0"))
+
       const generatePurchases = async function * () {
         //editions left
         let leftToMint = (await EditionsAuction.numberCanMint(0)).toNumber()
         while(leftToMint > 0){
           leftToMint--
-          yield await EditionsAuction.purchase(0, {value: ethers.utils.parseEther("1.0")})
+          yield await EditionsAuction.connect(collector).purchase(0, ethers.utils.parseEther("1.0"))
         }
       }
 
@@ -334,57 +354,8 @@ describe.only("EditionsAuction", () => {
 
       // purchase when no editons left
       await expect(
-        EditionsAuction.purchase(0, {value: ethers.utils.parseEther("1.0")})
+        EditionsAuction.connect(collector).purchase(0, ethers.utils.parseEther("1.0"))
       ).to.be.revertedWith("Sold out")
-    })
-  })
-
-  describe("#withdraw()", async () => {
-
-    let auction: any
-    beforeEach(async () => {
-      await createAuction(creator, {
-        curator: await curator.getAddress(),
-        curatorRoyaltyBPS: 1000
-      })
-      auction = await EditionsAuction.auctions(0)
-      // curator approves auction
-      await EditionsAuction.connect(curator).setAuctionApproval(0, true)
-    })
-
-    // TODO: should revert when balance is 0
-
-    it("should withdraw correct royalties", async () => {
-      // approve EditionsAuction for minting
-      await SingleEdition.connect(creator)
-        .setApprovedMinter(EditionsAuction.address, true)
-
-      // goto start of auction
-      await mineToTimestamp(auction.startTimestamp)
-
-      // purchase edition
-      await EditionsAuction.connect(collector)
-        .purchase(0, {value: ethers.utils.parseEther("1.0")})
-
-      const creatorBalance = await creator.getBalance()
-      const curatorBalance = await curator.getBalance()
-
-      // TODO: expect Withdrawn event from escrow contract?
-      // Widthdraw
-      await EditionsAuction.withdraw(await curator.getAddress())
-      await EditionsAuction.connect(creator).withdraw(await creator.getAddress())
-
-      expect(
-        (await curator.getBalance())
-          .sub(curatorBalance)
-          .gte(ethers.utils.parseEther("0.09")) // some lost to gas
-      ).to.eq(true)
-
-      expect(
-        (await creator.getBalance())
-          .sub(creatorBalance)
-          .gte(ethers.utils.parseEther("0.89")) // some lost to gas
-      ).to.eq(true)
     })
   })
 
@@ -437,22 +408,33 @@ describe.only("EditionsAuction", () => {
     })
     it("should allow for mints in the same block", async () => {
       const [ _, __, collectorA, collectorB, collectorC] = await ethers.getSigners();
+
+      // deposit 10 weth
+      await weth.connect(collectorA).deposit({ value: ethers.utils.parseEther("2.0") });
+      await weth.connect(collectorA).approve(EditionsAuction.address, ethers.utils.parseEther("2.0"))
+
+      await weth.connect(collectorB).deposit({ value: ethers.utils.parseEther("1.0") });
+      await weth.connect(collectorB).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+
+      await weth.connect(collectorC).deposit({ value: ethers.utils.parseEther("1.0") });
+      await weth.connect(collectorC).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+
       // pause auto mine
       await setAutoMine(false)
 
       // purchase two edition's
       await EditionsAuction.connect(collectorA)
-        .purchase(0, {value: ethers.utils.parseEther("1.0")})
+        .purchase(0, ethers.utils.parseEther("1.0"))
       await EditionsAuction.connect(collectorA)
-        .purchase(0, {value: ethers.utils.parseEther("1.0")})
+        .purchase(0, ethers.utils.parseEther("1.0"))
 
       // purchase one edition
       await EditionsAuction.connect(collectorB)
-        .purchase(0, {value: ethers.utils.parseEther("1.0")})
+        .purchase(0, ethers.utils.parseEther("1.0"))
 
       // wrong price
       await EditionsAuction.connect(collectorC)
-        .purchase(0, {value: ethers.utils.parseEther("0.9")})
+        .purchase(0, ethers.utils.parseEther("0.9"))
 
       // check token balance
       expect(
@@ -476,7 +458,7 @@ describe.only("EditionsAuction", () => {
 
       // check payments
       expect(
-        await EditionsAuction.paymentsOwed(await creator.getAddress())
+        await weth.balanceOf(await creator.getAddress())
       ).to.eq(ethers.utils.parseEther("3.0"));
 
       // un-pause auto mine
