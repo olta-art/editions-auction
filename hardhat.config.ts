@@ -29,13 +29,20 @@ const config: HardhatUserConfig = {
     purchaser: 0,
   },
   solidity: {
-    version: "0.8.6",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 100,
+    compilers: [
+      {
+        version: "0.8.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
+        }
       },
-    },
+      {
+        version: "0.6.8"
+      },
+    ],
   },
   // use hardhat-deploy plugin to deploy zora nft-editions for tests
   dependencyCompiler: {
