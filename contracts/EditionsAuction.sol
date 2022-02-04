@@ -192,8 +192,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     toMint[0] = msg.sender;
 
     // if free carry out purchase
-    // TODO: should check against saleprice instead?
-    if(amount == 0){
+    if(salePrice == 0){
       emit EditionPurchased(salePrice, msg.sender);
       return IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
     }
