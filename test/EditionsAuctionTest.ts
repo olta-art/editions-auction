@@ -258,6 +258,41 @@ describe("EditionsAuction", () => {
       ).to.be.revertedWith("Auction has not started yet")
     })
 
+    it("should revert if not approved to spend ERC-20", async () => {
+
+      const [ _, __, ___, collectorB] = await ethers.getSigners();
+
+      // approve EditionsAuction for minting
+      await SingleEdition.connect(creator)
+        .setApprovedMinter(EditionsAuction.address, true)
+
+      // move to when auction starts
+      await mineToTimestamp(auction.startTimestamp)
+
+      await expect(
+        EditionsAuction.connect(collectorB).purchase(0, ethers.utils.parseEther("1.0"))
+      ).to.be.revertedWith("SafeERC20: low-level call failed")
+    })
+
+    it("should revert if signer has insufficient balance", async () => {
+      // signer with 0 WETH
+      const [ _, __, ___, collectorB] = await ethers.getSigners();
+
+      // approve EditionsAuction for minting
+      await SingleEdition.connect(creator)
+        .setApprovedMinter(EditionsAuction.address, true)
+
+      // move to when auction starts
+      await mineToTimestamp(auction.startTimestamp)
+
+      // approve auction to spend WETH
+      await weth.connect(collectorB).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+
+      await expect(
+        EditionsAuction.connect(collectorB).purchase(0, ethers.utils.parseEther("1.0"))
+      ).to.be.revertedWith("SafeERC20: low-level call failed")
+    })
+
     it("should revert if the wrong price", async () => {
       // move to when auction starts
       await mineToTimestamp(auction.startTimestamp)
