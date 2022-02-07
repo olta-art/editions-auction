@@ -18,7 +18,7 @@ import {
   deployWETH,
 } from "./utils"
 
-describe.only("EditionsAuction", () => {
+describe("EditionsAuction", () => {
   let curator: SignerWithAddress;
   let creator: SignerWithAddress;
   let collector: SignerWithAddress;
@@ -392,79 +392,5 @@ describe.only("EditionsAuction", () => {
       expect(auction.approved).to.eq(true)
       expect(auction.curatorRoyaltyBPS).to.eq(1000)
     })
-  })
-
-  //TODO: stress test multiple auctions lots of purchases
-  //NOTE: See https://hardhat.org/hardhat-network/explanation/mining-modes.html
-  describe("auction", async () => {
-    let auction: any
-    beforeEach(async () => {
-      await createAuction()
-      auction = await EditionsAuction.auctions(0)
-      await SingleEdition.connect(creator)
-        .setApprovedMinter(EditionsAuction.address, true)
-      // goto start of auction
-      await mineToTimestamp(auction.startTimestamp)
-    })
-    it("should allow for mints in the same block", async () => {
-      const [ _, __, collectorA, collectorB, collectorC] = await ethers.getSigners();
-
-      // deposit 10 weth
-      await weth.connect(collectorA).deposit({ value: ethers.utils.parseEther("2.0") });
-      await weth.connect(collectorA).approve(EditionsAuction.address, ethers.utils.parseEther("2.0"))
-
-      await weth.connect(collectorB).deposit({ value: ethers.utils.parseEther("1.0") });
-      await weth.connect(collectorB).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
-
-      await weth.connect(collectorC).deposit({ value: ethers.utils.parseEther("1.0") });
-      await weth.connect(collectorC).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
-
-      // pause auto mine
-      await setAutoMine(false)
-
-      // purchase two edition's
-      await EditionsAuction.connect(collectorA)
-        .purchase(0, ethers.utils.parseEther("1.0"))
-      await EditionsAuction.connect(collectorA)
-        .purchase(0, ethers.utils.parseEther("1.0"))
-
-      // purchase one edition
-      await EditionsAuction.connect(collectorB)
-        .purchase(0, ethers.utils.parseEther("1.0"))
-
-      // wrong price
-      await EditionsAuction.connect(collectorC)
-        .purchase(0, ethers.utils.parseEther("0.9"))
-
-      // check token balance
-      expect(
-        await SingleEdition.balanceOf(await collectorA.getAddress())
-      ).to.eq(0)
-
-      await mine()
-
-      // check token balance
-      expect(
-        await SingleEdition.balanceOf(await collectorA.getAddress())
-      ).to.eq(2)
-
-      expect(
-        await SingleEdition.balanceOf(await collectorB.getAddress())
-      ).to.eq(1)
-
-      expect(
-        await SingleEdition.balanceOf(await collectorC.getAddress())
-      ).to.eq(0)
-
-      // check payments
-      expect(
-        await weth.balanceOf(await creator.getAddress())
-      ).to.eq(ethers.utils.parseEther("3.0"));
-
-      // un-pause auto mine
-      await setAutoMine(true)
-    })
-
-    // TODO: curator auction stress tests
   })
 })
