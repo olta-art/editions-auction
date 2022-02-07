@@ -22,6 +22,13 @@ const config: HardhatUserConfig = {
     currency: 'GBP',
     gasPrice: 120,
     coinmarketcap: process.env.COINMARKETCAP_KEY,
+    excludeContracts: [
+      "WETH.sol",
+      "BadERC721.sol",
+      "SingleEditionMintable.sol",
+      "SingleEditionMintableCreator.sol",
+      "ERC721Upgradeable.sol"
+    ]
   },
   networks,
   namedAccounts: {
