@@ -225,7 +225,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
 
     // else split payment between curator and creator
     else {
-      uint256 curatorFee = amount.div(10000).mul(auctions[auctionId].curatorRoyaltyBPS);
+      uint256 curatorFee = (amount.mul(auctions[auctionId].curatorRoyaltyBPS)).div(10000);
       token.safeTransfer(
         auctions[auctionId].curator,
         curatorFee
