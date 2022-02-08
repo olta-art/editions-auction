@@ -94,6 +94,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
 
     // TODO: require(IEditionSingleMintable(editionContract).numberCanMint() != type(uint256).max, "Editions must be a limited number")
     // TODO: require this contract is approved ??
+    // TODO: require curator rolaty not too high
 
     address creator = IEditionSingleMintable(editionContract).owner();
     require(msg.sender == creator, "Caller must be creator of editions");
@@ -186,7 +187,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     require( _numberCanMint(auctionId) != 0, "Sold out");
 
     uint256 salePrice = _getSalePrice(auctionId);
-    require(amount >= salePrice, "Wrong price");
+    require(amount >= salePrice, "Must be more or equal to sale price");
 
     address[] memory toMint = new address[](1);
     toMint[0] = msg.sender;
@@ -211,27 +212,27 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     // as some tokens impose a transfer fee and would not actually transfer the
     // full amount to the market, resulting in potentally locked funds
     uint256 beforeBalance = token.balanceOf(address(this));
-    token.safeTransferFrom(msg.sender, address(this), amount);
+    token.safeTransferFrom(msg.sender, address(this), salePrice);
     uint256 afterBalance = token.balanceOf(address(this));
-    require(beforeBalance + amount == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
+    require(beforeBalance + salePrice == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
 
     // if no curator, add payment to creator
     if(auctions[auctionId].curator == address(0)){
       token.safeTransfer(
         auctions[auctionId].creator,
-        amount
+        salePrice
       );
     }
 
     // else split payment between curator and creator
     else {
-      uint256 curatorFee = (amount.mul(auctions[auctionId].curatorRoyaltyBPS)).div(10000);
+      uint256 curatorFee = (salePrice.mul(auctions[auctionId].curatorRoyaltyBPS)).div(10000);
       token.safeTransfer(
         auctions[auctionId].curator,
         curatorFee
       );
 
-      uint256 creatorFee = amount.sub(curatorFee);
+      uint256 creatorFee = salePrice.sub(curatorFee);
       token.safeTransfer(
         auctions[auctionId].creator,
         creatorFee

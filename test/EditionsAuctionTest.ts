@@ -299,7 +299,7 @@ describe("EditionsAuction", () => {
 
       await expect(
          EditionsAuction.purchase(0, ethers.utils.parseEther("0.2"))
-      ).to.be.revertedWith("Wrong price")
+      ).to.be.revertedWith("Must be more or equal to sale price")
     })
 
     it("should purchase", async () => {
@@ -359,6 +359,37 @@ describe("EditionsAuction", () => {
       expect(
         await weth.balanceOf(await creator.getAddress())
       ).to.eq(ethers.utils.parseEther("0.9"));
+    })
+
+    it("should purchase at price based on block timestamp", async () => {
+      // approve EditionsAuction for minting
+      await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+
+      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+
+      // move to time to end of auction
+      const timestamp = auction.startTimestamp.add(auction.stepTime.mul(5))
+      await mineToTimestamp(timestamp)
+
+      const balanceBefore = await weth.balanceOf(await collector.getAddress())
+
+      // purchase edition
+      expect(
+        await EditionsAuction.connect(collector)
+          .purchase(0, ethers.utils.parseEther("1.0"))
+      ).to.emit(EditionsAuction, "EditionPurchased")
+
+      const balanceAfter = await weth.balanceOf(await collector.getAddress())
+
+      // pay only 0.2 weth
+      expect (
+        balanceBefore.sub(balanceAfter)
+      ).to.eq(ethers.utils.parseEther("0.2"))
+
+      // check token balance
+      expect(
+        await SingleEdition.balanceOf(await collector.getAddress())
+      ).to.eq(1)
     })
 
     it("should revert if sold out", async () => {
