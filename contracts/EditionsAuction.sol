@@ -38,7 +38,8 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
   //   return type(IEditionSingleMintable).interfaceId;
   // }
 
-  bytes4 constant interfaceId = 0x80ac58cd; // ERC-721 interface
+  bytes4 constant ERC721_interfaceId = 0x80ac58cd; // ERC-721 interface
+  bytes4 constant singleEditionMintable_interfaceId = 0x2fc51e5a;
 
   // A mapping of all the auctions currently running
   mapping (uint256 => IEditionsAuction.Auction) public auctions;
@@ -88,8 +89,13 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     address auctionCurrency
   ) external override nonReentrant returns (uint256) {
     require(
-      IERC165(editionContract).supportsInterface(interfaceId),
+      IERC165(editionContract).supportsInterface(ERC721_interfaceId),
       "Doesn't support NFT interface"
+    );
+
+    require(
+      IERC165(editionContract).supportsInterface(singleEditionMintable_interfaceId),
+      "Doesn't support Zora NFT Editions interface"
     );
 
     // TODO: require(IEditionSingleMintable(editionContract).numberCanMint() != type(uint256).max, "Editions must be a limited number")
