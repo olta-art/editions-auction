@@ -18,7 +18,12 @@ interface IEditionsAuction {
     address auctionCurrency;
   }
 
-  event EditionPurchased(uint256 price, address owner);
+  event EditionPurchased(
+    uint256 auctionId,
+    address tokenContract,
+    uint256 price,
+    address owner
+  );
 
   event AuctionCreated(
     uint256 auctionId,

@@ -200,7 +200,12 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
 
     // if free carry out purchase
     if(salePrice == 0){
-      emit EditionPurchased(salePrice, msg.sender);
+      emit EditionPurchased(
+        auctionId,
+        auctions[auctionId].editionContract,
+        salePrice,
+        msg.sender
+      );
       return IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
     }
 
@@ -245,7 +250,12 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
       );
     }
 
-    emit EditionPurchased(salePrice, msg.sender);
+    emit EditionPurchased(
+      auctionId,
+      auctions[auctionId].editionContract,
+      salePrice,
+      msg.sender
+    );
     return IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
   }
 
