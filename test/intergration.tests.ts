@@ -210,7 +210,7 @@ describe("EditionsAuction", () => {
   //TODO: NFT that is not zora NFT edition?
   //TODO: stress test multiple auctions at once?
 
-  describe.only("WETH auction with curator [FUZZY]", async () => {
+  describe("WETH auction with curator [FUZZY]", async () => {
     let auction: any
 
     beforeEach(async () => {
@@ -292,7 +292,7 @@ describe("EditionsAuction", () => {
     })
   })
 
-  describe.only("WETH auction with no curator [FUZZY]", async () => {
+  describe("WETH auction with no curator [FUZZY]", async () => {
     let auction: any
 
     beforeEach(async () => {
