@@ -243,7 +243,10 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
       }
     }
 
-    uint256 tokenId = IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
+    uint256 atEditionId = IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
+
+    // subtract 1 to get the id of the token minted
+    uint256 tokenId = atEditionId.sub(1);
 
     emit EditionPurchased(
       auctionId,
@@ -253,7 +256,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
       msg.sender
     );
 
-    return tokenId;
+    return atEditionId;
   }
 
   function numberCanMint(uint256 auctionId) external view override returns (uint256) {
