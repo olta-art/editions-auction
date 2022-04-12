@@ -7,9 +7,12 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
+import {IERC165} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {PullPayment} from "@openzeppelin/contracts/security/PullPayment.sol";
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import {IEditionSingleMintable} from "@zoralabs/nft-editions-contracts/contracts/IEditionSingleMintable.sol";
 import {IEditionsAuction} from "./IEditionsAuction.sol";
@@ -20,9 +23,23 @@ import {IEditionsAuction} from "./IEditionsAuction.sol";
 contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
   using SafeMath for uint256;
   using Counters for Counters.Counter;
+  using SafeERC20 for IERC20;
 
   // minimum time interval before price can drop in seconds
   uint8 minStepTime;
+
+  // TODO: should we check for EditionSingleMintable interface id?
+  /*
+    NOTE: As this contract is only ment for EditionSingleMintable type of NFT contract
+    used the function below to get: 0x2fc51e5a
+    but EditionSingleMintable contract supportsInterface does not return true
+   */
+  // function getEditionContractInterfaceId () external view returns (bytes4)  {
+  //   return type(IEditionSingleMintable).interfaceId;
+  // }
+
+  bytes4 constant ERC721_interfaceId = 0x80ac58cd; // ERC-721 interface
+  bytes4 constant singleEditionMintable_interfaceId = 0x2fc51e5a;
 
   // A mapping of all the auctions currently running
   mapping (uint256 => IEditionsAuction.Auction) public auctions;
@@ -68,21 +85,39 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     uint256 endPrice,
     uint8 numberOfPriceDrops,
     address curator,
-    uint256 curatorRoyaltyBPS
+    uint256 curatorRoyaltyBPS,
+    address auctionCurrency
   ) external override nonReentrant returns (uint256) {
-    // TODO: find or get EditionSingleMintable interfaceId so we can check the contract is a match
-    // require(IEditionSingleMintable(editionContract).supportsInterface(editionSingleMintableinterfaceId)
-    // artist
+    require(
+      IERC165(editionContract).supportsInterface(ERC721_interfaceId),
+      "Doesn't support NFT interface"
+    );
+
+    require(
+      IERC165(editionContract).supportsInterface(singleEditionMintable_interfaceId),
+      "Doesn't support Zora NFT Editions interface"
+    );
+
+    // TODO: require(IEditionSingleMintable(editionContract).numberCanMint() != type(uint256).max, "Editions must be a limited number")
+    // TODO: require this contract is approved ??
+    // TODO: require curator rolaty not too high
+
     address creator = IEditionSingleMintable(editionContract).owner();
     require(msg.sender == creator, "Caller must be creator of editions");
     require(startPrice > endPrice, "Start price must be higher then end price");
     if(curator == address(0)){
       require(curatorRoyaltyBPS == 0, "Royalties would be sent into the void");
     }
-    // The amount the price drops
-    uint256 stepPrice = startPrice.sub(endPrice).div(numberOfPriceDrops);
-    uint256 stepTime = duration.div(numberOfPriceDrops);
-    require(stepTime >= minStepTime, "Step time must be higher than minimuim step time");
+
+    // NOTE: calc with function to get past CompilerError: Stack too deep,
+    Step memory step = _calcStep(
+      duration,
+      startPrice,
+      endPrice,
+      numberOfPriceDrops
+    );
+
+    require(step.time >= minStepTime, "Step time must be higher than minimuim step time");
 
     uint256 auctionId = _auctionIdTracker.current();
 
@@ -94,11 +129,12 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
       endPrice: endPrice,
       numberOfPriceDrops: numberOfPriceDrops,
       creator: creator,
-      stepPrice: stepPrice,
-      stepTime: stepTime,
+      stepPrice: step.price,
+      stepTime: step.time,
       approved: false,
       curator: curator,
-      curatorRoyaltyBPS: curatorRoyaltyBPS
+      curatorRoyaltyBPS: curatorRoyaltyBPS,
+      auctionCurrency: auctionCurrency
     });
 
     _auctionIdTracker.increment();
@@ -113,7 +149,8 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
       endPrice,
       numberOfPriceDrops,
       curator,
-      curatorRoyaltyBPS
+      curatorRoyaltyBPS,
+      auctionCurrency
     );
 
     // auto approve auction
@@ -124,45 +161,102 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     return auctionId;
   }
 
+  struct Step {
+    uint256 price;
+    uint256 time;
+  }
+
+  function _calcStep (
+    uint256 duration,
+    uint256 startPrice,
+    uint256 endPrice,
+    uint8 numberOfPriceDrops
+  ) internal pure returns (Step memory) {
+
+    Step memory step;
+
+    step.price = startPrice.sub(endPrice).div(numberOfPriceDrops);
+    step.time = duration.div(numberOfPriceDrops);
+
+    return step;
+  }
+
   /**
    * @notice Purchases an NFT
    * @dev mints an NFT and splits purchase fee between creator and curator
    * @param auctionId the id of the auction
    * @return the id of the NFT
    */
-  function purchase(uint256 auctionId) external payable override auctionExists(auctionId) returns (uint256){
+  function purchase(uint256 auctionId, uint256 amount) external payable override auctionExists(auctionId) returns (uint256){
     require(auctions[auctionId].approved, "Auction has not been approved");
     require(block.timestamp >= auctions[auctionId].startTimestamp, "Auction has not started yet");
     require( _numberCanMint(auctionId) != 0, "Sold out");
 
     uint256 salePrice = _getSalePrice(auctionId);
-    require(msg.value == salePrice, "Wrong price");
+    require(amount >= salePrice, "Must be more or equal to sale price");
 
     address[] memory toMint = new address[](1);
     toMint[0] = msg.sender;
 
-    // if free carry out purchase
-    if(msg.value == 0){
-      emit EditionPurchased(salePrice, msg.sender);
-      return IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
+    // if not free carry out purchase
+    if(salePrice != 0){
+
+      IERC20 token = IERC20(auctions[auctionId].auctionCurrency);
+
+      // NOTE: msg.sender would need to approve this contract with currency before making a purchase
+      // If intergrating with zora v3 the market would hold the funds and handle royalties differently.
+      // through royalties finders, and protocal fees
+      // TODO: respect royalties on NFT contract (v3 intergration could solve this)
+
+      // NOTE: modified from v3 for now. A full intergration would be better if we go that route
+      // https://github.com/ourzora/v3/blob/main/contracts/common/IncomingTransferSupport/V1/IncomingTransferSupportV1.sol
+
+      // We must check the balance that was actually transferred to this contract,
+      // as some tokens impose a transfer fee and would not actually transfer the
+      // full amount to the market, resulting in potentally locked funds
+      uint256 beforeBalance = token.balanceOf(address(this));
+      token.safeTransferFrom(msg.sender, address(this), salePrice);
+      uint256 afterBalance = token.balanceOf(address(this));
+      require(beforeBalance + salePrice == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
+
+      // if no curator, add payment to creator
+      if(auctions[auctionId].curator == address(0)){
+        token.safeTransfer(
+          auctions[auctionId].creator,
+          salePrice
+        );
+      }
+
+      // else split payment between curator and creator
+      else {
+        uint256 curatorFee = (salePrice.mul(auctions[auctionId].curatorRoyaltyBPS)).div(10000);
+        token.safeTransfer(
+          auctions[auctionId].curator,
+          curatorFee
+        );
+
+        uint256 creatorFee = salePrice.sub(curatorFee);
+        token.safeTransfer(
+          auctions[auctionId].creator,
+          creatorFee
+        );
+      }
     }
 
-    // if no curator, add payment to creator
-    if(auctions[auctionId].curator == address(0)){
-      _asyncTransfer(auctions[auctionId].creator, msg.value);
-    }
+    uint256 atEditionId = IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
 
-    // else split payment between curator and creator
-    else {
-      uint256 curatorFee = msg.value.div(10000).mul(auctions[auctionId].curatorRoyaltyBPS);
-      _asyncTransfer(auctions[auctionId].curator, curatorFee);
+    // subtract 1 to get the id of the token minted
+    uint256 tokenId = atEditionId.sub(1);
 
-      uint256 creatorFee = msg.value.sub(curatorFee);
-      _asyncTransfer(auctions[auctionId].creator, creatorFee);
-    }
+    emit EditionPurchased(
+      auctionId,
+      auctions[auctionId].editionContract,
+      tokenId,
+      salePrice,
+      msg.sender
+    );
 
-    emit EditionPurchased(salePrice, msg.sender);
-    return IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
+    return atEditionId;
   }
 
   function numberCanMint(uint256 auctionId) external view override returns (uint256) {
@@ -190,25 +284,6 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
    */
   function getSalePrice(uint256 auctionId) external view override returns (uint256) {
     return _getSalePrice(auctionId);
-  }
-
-  /**
-   * @dev Returns the payments owed to an address.
-   * @param dest The creditor's address.
-   */
-  function paymentsOwed(address dest) external view virtual override returns (uint256) {
-      return payments(dest);
-  }
-
-  // TODO: check if need reentrency guard here: https://docs.openzeppelin.com/contracts/4.x/api/security#PullPayment-withdrawPayments-address-payable-
-  /**
-   * @dev withdraws the payments owed to an address.
-   * @param paye the address to pay
-   */
-  function withdraw(address payable paye) external override {
-    require(payments(paye) != 0,"account is not owed any payments");
-
-    withdrawPayments(paye);
   }
 
   function _numberCanMint(uint256 auctionId) internal view returns (uint256) {

@@ -19,8 +19,16 @@ const config: HardhatUserConfig = {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
   gasReporter: {
-    currency: 'USD',
-    gasPrice: 60, 
+    currency: 'GBP',
+    gasPrice: 120,
+    coinmarketcap: process.env.COINMARKETCAP_KEY,
+    excludeContracts: [
+      "WETH.sol",
+      "BadERC721.sol",
+      "SingleEditionMintable.sol",
+      "SingleEditionMintableCreator.sol",
+      "ERC721Upgradeable.sol"
+    ]
   },
   networks,
   namedAccounts: {
@@ -28,13 +36,20 @@ const config: HardhatUserConfig = {
     purchaser: 0,
   },
   solidity: {
-    version: "0.8.6",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 100,
+    compilers: [
+      {
+        version: "0.8.6",
+        settings: {
+          optimizer: {
+            enabled: true,
+            runs: 100,
+          },
+        }
       },
-    },
+      {
+        version: "0.6.8"
+      },
+    ],
   },
   // use hardhat-deploy plugin to deploy zora nft-editions for tests
   dependencyCompiler: {
