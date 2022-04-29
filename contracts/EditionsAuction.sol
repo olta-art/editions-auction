@@ -9,7 +9,6 @@ pragma solidity 0.8.6;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC165} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import {PullPayment} from "@openzeppelin/contracts/security/PullPayment.sol";
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -21,7 +20,7 @@ import {IEditionsAuction, Edition, Step} from "./IEditionsAuction.sol";
 /**
  * @title An open dutch auction house, for initial drops of limited edition nft contracts.
  */
-contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
+contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
   using SafeMath for uint256;
   using Counters for Counters.Counter;
   using SafeERC20 for IERC20;
