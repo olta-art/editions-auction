@@ -51,25 +51,21 @@ const config: HardhatUserConfig = {
       },
     ],
   },
-  // use hardhat-deploy plugin to deploy zora nft-editions for tests
-  dependencyCompiler: {
-    paths: [
-      "@zoralabs/nft-editions-contracts/contracts/SharedNFTLogic.sol",
-      "@zoralabs/nft-editions-contracts/contracts/SingleEditionMintable.sol",
-      "@zoralabs/nft-editions-contracts/contracts/SingleEditionMintableCreator.sol",
-    ],
+  typechain: {
+    externalArtifacts: [
+      "./deployments/localhost/*.json"
+    ]
   },
   external: {
     contracts: [
       {
-        artifacts: "./artifacts/@zoralabs/nft-editions-contracts/contracts",
-        deploy: "./scripts/zora-nft-editions/deploy"
+        artifacts: process.env.PATH_TO_EDITIONS_CONTRACTS + "artifacts",
+        deploy:  process.env.PATH_TO_EDITIONS_CONTRACTS + "deploy"
       },
     ],
-    deployments: {
-      mumbai: ["@zoralabs/nft-editions-contracts/deployments/mumbai"],
-      polygon: ["@zoralabs/nft-editions-contracts/deployments/polygon"]
-    },
+    deployments : {
+      localhost: ["./deployments"]
+    }
   }
 };
 
