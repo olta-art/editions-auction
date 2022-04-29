@@ -14,8 +14,9 @@ import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-import {IEditionSingleMintable} from "@zoralabs/nft-editions-contracts/contracts/IEditionSingleMintable.sol";
-import {IEditionsAuction} from "./IEditionsAuction.sol";
+import {IEditionSingleMintable} from "./editions-nft/IEditionSingleMintable.sol";
+import {ISeededEditionSingleMintable} from "./editions-nft/ISeededEditionSingleMintable.sol";
+import {IEditionsAuction, Edition, Step} from "./IEditionsAuction.sol";
 
 /**
  * @title An open dutch auction house, for initial drops of limited edition nft contracts.
@@ -28,18 +29,8 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
   // minimum time interval before price can drop in seconds
   uint8 minStepTime;
 
-  // TODO: should we check for EditionSingleMintable interface id?
-  /*
-    NOTE: As this contract is only ment for EditionSingleMintable type of NFT contract
-    used the function below to get: 0x2fc51e5a
-    but EditionSingleMintable contract supportsInterface does not return true
-   */
-  // function getEditionContractInterfaceId () external view returns (bytes4)  {
-  //   return type(IEditionSingleMintable).interfaceId;
-  // }
-
   bytes4 constant ERC721_interfaceId = 0x80ac58cd; // ERC-721 interface
-  bytes4 constant singleEditionMintable_interfaceId = 0x2fc51e5a;
+  bytes4[2] editionsImplentaion_interfaceIds;
 
   // A mapping of all the auctions currently running
   mapping (uint256 => IEditionsAuction.Auction) public auctions;
@@ -60,6 +51,8 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
    */
   constructor() {
     minStepTime = 2 * 60; // 2 minutes
+    editionsImplentaion_interfaceIds[0] = 0x2fc51e5a;
+    editionsImplentaion_interfaceIds[1] = 0x26057e5e;
   }
 
   /**
@@ -67,7 +60,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
    * @dev Store the auction details in the auctions mapping and emit an AuctionCreated event.
    * If there is no curator, or if the curator is the auction creator,
    * automatically approve the auction and emit an AuctionApproved event.
-   * @param editionContract the contract of which NFT's will be minted
+   * @param edition the contract address and implementation of which NFT's will be minted
    * @param startTimestamp the time the auction will start
    * @param duration the duration the auction will run for
    * @param startPrice the price in eth the auction will start at
@@ -78,7 +71,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
    * @return auction id
    */
   function createAuction(
-    address editionContract,
+    Edition memory edition,
     uint256 startTimestamp,
     uint256 duration,
     uint256 startPrice,
@@ -89,20 +82,20 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     address auctionCurrency
   ) external override nonReentrant returns (uint256) {
     require(
-      IERC165(editionContract).supportsInterface(ERC721_interfaceId),
+      IERC165(edition.id).supportsInterface(ERC721_interfaceId),
       "Doesn't support NFT interface"
     );
 
     require(
-      IERC165(editionContract).supportsInterface(singleEditionMintable_interfaceId),
-      "Doesn't support Zora NFT Editions interface"
+      IERC165(edition.id).supportsInterface(editionsImplentaion_interfaceIds[edition.implementation]),
+      "Doesn't support chosen Editions interface"
     );
 
     // TODO: require(IEditionSingleMintable(editionContract).numberCanMint() != type(uint256).max, "Editions must be a limited number")
     // TODO: require this contract is approved ??
     // TODO: require curator rolaty not too high
 
-    address creator = IEditionSingleMintable(editionContract).owner();
+    address creator = IEditionSingleMintable(edition.id).owner();
     require(msg.sender == creator, "Caller must be creator of editions");
     require(startPrice > endPrice, "Start price must be higher then end price");
     if(curator == address(0)){
@@ -122,15 +115,14 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     uint256 auctionId = _auctionIdTracker.current();
 
     auctions[auctionId] = Auction({
-      editionContract: editionContract,
+      edition: edition,
       startTimestamp: startTimestamp,
       duration: duration,
       startPrice: startPrice,
       endPrice: endPrice,
       numberOfPriceDrops: numberOfPriceDrops,
       creator: creator,
-      stepPrice: step.price,
-      stepTime: step.time,
+      step: step,
       approved: false,
       curator: curator,
       curatorRoyaltyBPS: curatorRoyaltyBPS,
@@ -142,7 +134,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     emit AuctionCreated(
       auctionId,
       creator,
-      editionContract,
+      edition,
       startTimestamp,
       duration,
       startPrice,
@@ -161,10 +153,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     return auctionId;
   }
 
-  struct Step {
-    uint256 price;
-    uint256 time;
-  }
+
 
   function _calcStep (
     uint256 duration,
@@ -243,14 +232,14 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
       }
     }
 
-    uint256 atEditionId = IEditionSingleMintable(auctions[auctionId].editionContract).mintEditions(toMint);
+    uint256 atEditionId = IEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
 
     // subtract 1 to get the id of the token minted
     uint256 tokenId = atEditionId.sub(1);
 
     emit EditionPurchased(
       auctionId,
-      auctions[auctionId].editionContract,
+      auctions[auctionId].edition.id,
       tokenId,
       salePrice,
       msg.sender
@@ -258,6 +247,8 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
 
     return atEditionId;
   }
+
+  // TODO: overload purchase function to take extra uint256 as a seed?
 
   function numberCanMint(uint256 auctionId) external view override returns (uint256) {
     return _numberCanMint(auctionId);
@@ -287,7 +278,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
   }
 
   function _numberCanMint(uint256 auctionId) internal view returns (uint256) {
-    return IEditionSingleMintable(auctions[auctionId].editionContract).numberCanMint();
+    return IEditionSingleMintable(auctions[auctionId].edition.id).numberCanMint();
   }
 
   function _exists(uint256 auctionId) internal view returns(bool) {
@@ -296,7 +287,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
 
   function _approveAuction(uint256 auctionId, bool approved) internal {
     auctions[auctionId].approved = approved;
-    emit AuctionApprovalUpdated(auctionId, auctions[auctionId].editionContract, approved);
+    emit AuctionApprovalUpdated(auctionId, auctions[auctionId].edition.id, approved);
   }
 
   function _getSalePrice(uint256 auctionId) internal view returns (uint256) {
@@ -306,17 +297,17 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard, PullPayment {
     }
 
     // return startPrice if auction hasn't started yet
-    if(block.timestamp < auctions[auctionId].startTimestamp.add(auctions[auctionId].stepTime)){
+    if(block.timestamp < auctions[auctionId].startTimestamp.add(auctions[auctionId].step.time)){
       return auctions[auctionId].startPrice;
     }
 
     // calculate price based of block.timestamp
     uint256 timeSinceStart = block.timestamp.sub(auctions[auctionId].startTimestamp);
-    uint256 remainder = timeSinceStart.mod(auctions[auctionId].stepTime);
-    uint256 dropNum = timeSinceStart.sub(remainder).div(auctions[auctionId].stepTime);
+    uint256 remainder = timeSinceStart.mod(auctions[auctionId].step.time);
+    uint256 dropNum = timeSinceStart.sub(remainder).div(auctions[auctionId].step.time);
 
     // transalte -1 so endPrice is after auction.duration
-    return auctions[auctionId].startPrice.sub(auctions[auctionId].stepPrice.mul(dropNum - 1));
+    return auctions[auctionId].startPrice.sub(auctions[auctionId].step.price.mul(dropNum - 1));
   }
   // TODO: endAuction end everything if sold out remove form auctions mapping?
 }
