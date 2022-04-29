@@ -51,7 +51,7 @@ describe("EditionsAuction", () => {
 
   const createAuction = async (signer: SignerWithAddress = creator, options = {}) => {
     const defaults = {
-      editionContract: SingleEdition.address,
+      edition: {id: SingleEdition.address, implementation: 0},
       startTime: Math.floor((Date.now() / 1000)) + 60 * 2, // now + 2 mins
       duration: 60 * 8, // 8 minutes
       startPrice: ethers.utils.parseEther("1.0"),
@@ -65,7 +65,7 @@ describe("EditionsAuction", () => {
     const params = {...defaults, ...options}
 
     return EditionsAuction.connect(signer).createAuction(
-      params.editionContract,
+      params.edition,
       params.startTime,
       params.duration,
       params.startPrice,
@@ -111,7 +111,7 @@ describe("EditionsAuction", () => {
       ]);
       await expect(
         createAuction(creator, {
-          editionContract: BadERC721.address
+          edition: {id: BadERC721.address, implementation: 0}
         })
       ).to.be.revertedWith("Doesn't support NFT interface")
     })
@@ -187,14 +187,14 @@ describe("EditionsAuction", () => {
 
       const auction = await EditionsAuction.auctions(0)
 
-      expect(auction.editionContract).to.eq(SingleEdition.address)
+      expect(auction.edition.id).to.eq(SingleEdition.address)
       expect(auction.startTimestamp).to.eq(startTime)
       expect(auction.duration).to.eq(8 * 60)
       expect(auction.startPrice).to.eq(ethers.utils.parseEther("1.0"))
       expect(auction.endPrice).to.eq(ethers.utils.parseEther("0.2"))
       expect(auction.numberOfPriceDrops).to.eq(4)
-      expect(auction.stepPrice).to.eq(ethers.utils.parseEther("0.2"))
-      expect(auction.stepTime).to.eq(60*2)
+      expect(auction.step.price).to.eq(ethers.utils.parseEther("0.2"))
+      expect(auction.step.time).to.eq(60*2)
       expect(auction.curator).to.eq(ethers.constants.AddressZero)
       expect(auction.curatorRoyaltyBPS).to.eq(0)
       expect(auction.approved).to.eq(true) // auto approves
@@ -220,10 +220,10 @@ describe("EditionsAuction", () => {
     it("should drop the price at set intervals during auction", async () => {
       for(let i = 1; i <= auction.numberOfPriceDrops; i++){
         // move the blocks along
-        const time = auction.startTimestamp.add(auction.stepTime.mul(i))
+        const time = auction.startTimestamp.add(auction.step.time.mul(i))
         await mineToTimestamp(time)
 
-        const expectedPrice = auction.startPrice.sub(auction.stepPrice.mul(i - 1))
+        const expectedPrice = auction.startPrice.sub(auction.step.price.mul(i - 1))
 
         expect(
           await EditionsAuction.getSalePrice(0)
@@ -368,7 +368,7 @@ describe("EditionsAuction", () => {
       await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
 
       // move to time to end of auction
-      const timestamp = auction.startTimestamp.add(auction.stepTime.mul(5))
+      const timestamp = auction.startTimestamp.add(auction.step.time.mul(5))
       await mineToTimestamp(timestamp)
 
       const balanceBefore = await weth.balanceOf(await collector.getAddress())

@@ -59,7 +59,7 @@ describe("EditionsAuction", () => {
 
   const createAuction = async (signer: SignerWithAddress = creator, options = {}) => {
     const defaults = {
-      editionContract: SingleEdition.address,
+      edition: {id: SingleEdition.address, implementation: 0},
       startTime: Math.floor((Date.now() / 1000)) + 60 * 2, // now + 2 mins
       duration: 60 * 8, // 8 minutes
       startPrice: ethers.utils.parseEther("1.0"),
@@ -73,7 +73,7 @@ describe("EditionsAuction", () => {
     const params = {...defaults, ...options}
 
     return EditionsAuction.connect(signer).createAuction(
-      params.editionContract,
+      params.edition,
       params.startTime,
       params.duration,
       params.startPrice,
