@@ -35,6 +35,15 @@ interface IEditionsAuction {
     address owner
   );
 
+  event SeededEditionPurchased(
+    uint256 auctionId,
+    address tokenContract,
+    uint256 tokenId,
+    uint256 seed,
+    uint256 price,
+    address owner
+  );
+
   event AuctionCreated(
     uint256 auctionId,
     address creator,

@@ -486,7 +486,7 @@ describe("EditionsAuction", () => {
       expect(
         await EditionsAuction.connect(collector)
           ["purchase(uint256,uint256,uint256)"](0, ethers.utils.parseEther("1.0"), seed)
-      ).to.emit(EditionsAuction, "EditionPurchased")
+      ).to.emit(EditionsAuction, "SeededEditionPurchased")
 
       // check token balance
       expect(

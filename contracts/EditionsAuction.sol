@@ -248,11 +248,11 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     // subtract 1 to get the id of the token minted
     uint256 tokenId = atEditionId.sub(1);
 
-    // TODO: add emit SeededEditionPurchased event
-    emit EditionPurchased(
+    emit SeededEditionPurchased(
       auctionId,
       auctions[auctionId].edition.id,
       tokenId,
+      seed,
       salePrice,
       msg.sender
     );
