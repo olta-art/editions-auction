@@ -72,6 +72,7 @@ interface IEditionsAuction {
   function getSalePrice(uint256 auctionId) external returns (uint256);
 
   function purchase(uint256 auctionId, uint256 amount) external payable returns (uint256);
+  function purchase(uint256 auctionId, uint256 amount, uint256 seed) external payable returns (uint256);
 
   function numberCanMint(uint256 auctionId) external view returns (uint256);
 }

@@ -143,7 +143,7 @@ describe("EditionsAuction", () => {
 
       // make purchase
       const salePrice = await EditionsAuction.getSalePrice(auctionId)
-      return await EditionsAuction.connect(collector).purchase(auctionId, salePrice)
+      return await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](auctionId, salePrice)
     }
 
     // generator function
@@ -176,7 +176,7 @@ describe("EditionsAuction", () => {
     // purchase when no editons left
     const salePrice = await EditionsAuction.getSalePrice(0)
     await expect(
-      EditionsAuction.connect(collector).purchase(0, salePrice)
+      EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, salePrice)
     ).to.be.revertedWith("Sold out")
 
     return total
@@ -381,17 +381,17 @@ describe("EditionsAuction", () => {
 
       // purchase two edition's
       await EditionsAuction.connect(collectorA)
-        .purchase(0, ethers.utils.parseEther("1.0"))
+        ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       await EditionsAuction.connect(collectorA)
-        .purchase(0, ethers.utils.parseEther("1.0"))
+        ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
 
       // purchase one edition
       await EditionsAuction.connect(collectorB)
-        .purchase(0, ethers.utils.parseEther("1.0"))
+        ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
 
       // wrong price
       await EditionsAuction.connect(collectorC)
-        .purchase(0, ethers.utils.parseEther("0.9"))
+        ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("0.9"))
 
       // check token balance
       expect(
