@@ -44,6 +44,12 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     _;
   }
 
+  modifier auctionPurchaseChecks(uint256 auctionId) {
+    require(auctions[auctionId].approved, "Auction has not been approved");
+    require(block.timestamp >= auctions[auctionId].startTimestamp, "Auction has not started yet");
+    require( _numberCanMint(auctionId) != 0, "Sold out");
+    _;
+  }
 
   /**
    * Constructor
@@ -175,11 +181,14 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
    * @param value the amount paid in erc-20 tokens to mint
    * @return id of the NFT
    */
-  function purchase(uint256 auctionId, uint256 value) external payable override auctionExists(auctionId) returns (uint256){
-    require(auctions[auctionId].approved, "Auction has not been approved");
-    require(block.timestamp >= auctions[auctionId].startTimestamp, "Auction has not started yet");
-    require( _numberCanMint(auctionId) != 0, "Sold out");
-
+  function purchase(
+    uint256 auctionId,
+    uint256 value
+  ) external payable override
+    auctionExists(auctionId)
+    auctionPurchaseChecks(auctionId)
+    returns (uint256)
+  {
     uint256 salePrice = _getSalePrice(auctionId);
     require(value >= salePrice, "Must be more or equal to sale price");
 
@@ -214,12 +223,15 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
    * @param seed the seed of the NFT to mint
    * @return id of the NFT
    */
-  function purchase(uint256 auctionId, uint256 value, uint256 seed) external payable override auctionExists(auctionId) returns (uint256){
-    // TODO: refactor to _checkAuction
-    require(auctions[auctionId].approved, "Auction has not been approved");
-    require(block.timestamp >= auctions[auctionId].startTimestamp, "Auction has not started yet");
-    require( _numberCanMint(auctionId) != 0, "Sold out");
-
+  function purchase(
+    uint256 auctionId,
+    uint256 value,
+    uint256 seed
+  ) external payable override
+    auctionExists(auctionId)
+    auctionPurchaseChecks(auctionId)
+    returns (uint256)
+  {
     uint256 salePrice = _getSalePrice(auctionId);
     require(value >= salePrice, "Must be more or equal to sale price");
 
