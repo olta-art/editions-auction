@@ -453,39 +453,55 @@ describe("EditionsAuction", () => {
   describe("#purchase(uint256 auctionId, uint256 amount, uint256 seed)", () => {
     let seededEdition: SeededSingleEditionMintable
     let seededAuction: any
+    let notSeededEdition: SingleEditionMintable
+    let notSeededAuction: any
     beforeEach( async () => {
-      // create seeded edition
+      // create seeded edition and auction
       seededEdition = await createSeededEdition()
-      // create auction
       await createAuction(creator, {
         edition: {
           id: seededEdition.address,
           implementation: Implementation.seededEditions
         }
       })
-
       seededAuction = await EditionsAuction.auctions(0)
+
+      // create not seeded edtion and auction
+      notSeededEdition = await createEdition()
+      await createAuction()
+      notSeededAuction = await EditionsAuction.auctions(0)
 
       // give collector some weth
       await weth.connect(collector).deposit({ value: ethers.utils.parseEther("1.0") });
-    })
 
-    it("should purchase", async () => {
+      // approve auction to spend WETH
+      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+
       // approve EditionsAuction for minting
       await seededEdition.connect(creator)
         .setApprovedMinter(EditionsAuction.address, true)
 
       // move to when auction starts
       await mineToTimestamp(seededAuction.startTimestamp)
+    })
 
-      // approve auction to spend WETH
-      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+    it.only("should revert if editions is not seeded implementation", async () => {
+      // note[George]: currently throws Error:
+      // invalid BigNumber value (argument="value", value=undefined, code=INVALID_ARGUMENT, version=bignumber/5.5.0)
 
-      // purchase seed
+      // potentially a exsesive gas used, not sure if there is a quicker way to revert
+      const seed = 5
+      await expect(
+         EditionsAuction.connect(collector)
+          ["purchase(uint256,uint256,uint256)"](notSeededAuction.id, ethers.utils.parseEther("1.0"), seed)
+      ).to.be.reverted
+    })
+
+    it("should purchase", async () => {
       const seed = 5
       expect(
         await EditionsAuction.connect(collector)
-          ["purchase(uint256,uint256,uint256)"](0, ethers.utils.parseEther("1.0"), seed)
+          ["purchase(uint256,uint256,uint256)"](seededAuction.id, ethers.utils.parseEther("1.0"), seed)
       ).to.emit(EditionsAuction, "SeededEditionPurchased")
 
       // check token balance
