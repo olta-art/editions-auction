@@ -170,18 +170,18 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
   }
 
   /**
-   * @notice Purchases an NFT
-   * @dev mints an NFT and splits purchase fee between creator and curator
+   * @dev mints a NFT and splits purchase fee between creator and curator
    * @param auctionId the id of the auction
-   * @return the id of the NFT
+   * @param value the amount paid in erc-20 tokens to mint
+   * @return id of the NFT
    */
-  function purchase(uint256 auctionId, uint256 amount) external payable override auctionExists(auctionId) returns (uint256){
+  function purchase(uint256 auctionId, uint256 value) external payable override auctionExists(auctionId) returns (uint256){
     require(auctions[auctionId].approved, "Auction has not been approved");
     require(block.timestamp >= auctions[auctionId].startTimestamp, "Auction has not started yet");
     require( _numberCanMint(auctionId) != 0, "Sold out");
 
     uint256 salePrice = _getSalePrice(auctionId);
-    require(amount >= salePrice, "Must be more or equal to sale price");
+    require(value >= salePrice, "Must be more or equal to sale price");
 
     // if not free carry out purchase
     if(salePrice != 0){
@@ -207,15 +207,12 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     return atEditionId;
   }
 
-  // TODO: overload purchase function to take extra uint256 as a seed?
-
-    /**
-   * @notice Purchases an NFT
-   * @dev mints an NFT and splits purchase fee between creator and curator
+  /**
+   * @dev mints a seeded NFT and splits purchase fee between creator and curator
    * @param auctionId the id of the auction
    * @param value the amount paid in erc-20 tokens to mint
    * @param seed the seed of the NFT to mint
-   * @return the id of the NFT
+   * @return id of the NFT
    */
   function purchase(uint256 auctionId, uint256 value, uint256 seed) external payable override auctionExists(auctionId) returns (uint256){
     // TODO: refactor to _checkAuction
