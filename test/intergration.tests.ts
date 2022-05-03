@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import "@nomiclabs/hardhat-ethers";
-import { ethers, deployments, network } from "hardhat";
+import { ethers, deployments } from "hardhat";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
@@ -18,7 +18,10 @@ import {
   deployWETH,
   getRandomInt,
   getPreviousBlockTimestamp,
-  equalWithin
+  equalWithin,
+  editionData,
+  defaultVersion,
+  Implementation
 } from "./utils"
 
 
@@ -37,20 +40,24 @@ describe("EditionsAuction", () => {
 
   const createEdition = async (signer: SignerWithAddress = creator) => {
     const transaction = await SingleEditonCreator.connect(signer).createEdition(
-      "Testing Token",
-      "TEST",
-      "This is a testing token for all",
-      "https://ipfs.io/ipfsbafybeify52a63pgcshhbtkff4nxxxp2zp5yjn2xw43jcy4knwful7ymmgy",
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "",
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      10,
-      10
+      editionData(
+        "Testing Token",
+        "TEST",
+        "This is a testing token for all",
+        defaultVersion(),
+        // 1% royalty since BPS
+        10,
+        10
+      ),
+      Implementation.editions
     );
     const [id] = await getEventArguments(transaction, "CreatedEdition")
-    const editionResult = await SingleEditonCreator.getEditionAtId(id)
+    const editionResult = await SingleEditonCreator.getEditionAtId(id, Implementation.editions)
+
+    // Note[George]: found I had to pass abi here to get this to work
+    const { abi } = await deployments.get("SingleEditionMintable")
     const SingleEditionContract = (await ethers.getContractAt(
-      "SingleEditionMintable",
+      abi,
       editionResult
     )) as SingleEditionMintable;
 
@@ -183,7 +190,7 @@ describe("EditionsAuction", () => {
     ]);
 
     SingleEditonCreator = (await ethers.getContractAt(
-      "SingleEditionMintableCreator",
+      SingleEditionMintableCreator.abi,
       SingleEditionMintableCreator.address
     )) as SingleEditionMintableCreator;
 
@@ -346,7 +353,6 @@ describe("EditionsAuction", () => {
   })
 
 
-  //TODO: stress test multiple auctions lots of purchases
   describe("WETH auction with no curator", async () => {
     let auction: any
     beforeEach(async () => {

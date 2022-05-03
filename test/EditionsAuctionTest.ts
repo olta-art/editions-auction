@@ -11,11 +11,12 @@ import {
 } from "../typechain";
 
 import {
-  mine,
-  setAutoMine,
   mineToTimestamp,
   getEventArguments,
   deployWETH,
+  defaultVersion,
+  Implementation,
+  editionData
 } from "./utils"
 
 describe("EditionsAuction", () => {
@@ -29,20 +30,24 @@ describe("EditionsAuction", () => {
 
   const createEdition = async (signer: SignerWithAddress = creator) => {
     const transaction = await SingleEditonCreator.connect(signer).createEdition(
-      "Testing Token",
-      "TEST",
-      "This is a testing token for all",
-      "https://ipfs.io/ipfsbafybeify52a63pgcshhbtkff4nxxxp2zp5yjn2xw43jcy4knwful7ymmgy",
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "",
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      10,
-      10
+      editionData(
+        "Testing Token",
+        "TEST",
+        "This is a testing token for all",
+        defaultVersion(),
+        // 1% royalty since BPS
+        10,
+        10
+      ),
+      Implementation.editions
     );
     const [id] = await getEventArguments(transaction, "CreatedEdition")
-    const editionResult = await SingleEditonCreator.getEditionAtId(id)
+    const editionResult = await SingleEditonCreator.getEditionAtId(id, Implementation.editions)
+
+    // Note[George]: found I had to pass abi here to get this to work
+    const { abi } = await deployments.get("SingleEditionMintable")
     const SingleEditionContract = (await ethers.getContractAt(
-      "SingleEditionMintable",
+      abi,
       editionResult
     )) as SingleEditionMintable;
 
@@ -80,12 +85,12 @@ describe("EditionsAuction", () => {
   beforeEach(async () => {
     const { SingleEditionMintableCreator, EditionsAuction: EditionsAuctionContract } = await deployments.fixture([
       "SingleEditionMintableCreator",
-      "SingleEditionMintable",
       "EditionsAuction"
     ]);
 
+    // const SingleEditonCreatorArtifact = await deployments.getArtifact("SingleEditionMintableCreator")
     SingleEditonCreator = (await ethers.getContractAt(
-      "SingleEditionMintableCreator",
+      SingleEditionMintableCreator.abi,
       SingleEditionMintableCreator.address
     )) as SingleEditionMintableCreator;
 
