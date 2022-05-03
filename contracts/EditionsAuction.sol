@@ -183,53 +183,13 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     uint256 salePrice = _getSalePrice(auctionId);
     require(amount >= salePrice, "Must be more or equal to sale price");
 
-    address[] memory toMint = new address[](1);
-    toMint[0] = msg.sender;
-
     // if not free carry out purchase
     if(salePrice != 0){
-
-      IERC20 token = IERC20(auctions[auctionId].auctionCurrency);
-
-      // NOTE: msg.sender would need to approve this contract with currency before making a purchase
-      // If intergrating with zora v3 the market would hold the funds and handle royalties differently.
-      // through royalties finders, and protocal fees
-      // TODO: respect royalties on NFT contract (v3 intergration could solve this)
-
-      // NOTE: modified from v3 for now. A full intergration would be better if we go that route
-      // https://github.com/ourzora/v3/blob/main/contracts/common/IncomingTransferSupport/V1/IncomingTransferSupportV1.sol
-
-      // We must check the balance that was actually transferred to this contract,
-      // as some tokens impose a transfer fee and would not actually transfer the
-      // full amount to the market, resulting in potentally locked funds
-      uint256 beforeBalance = token.balanceOf(address(this));
-      token.safeTransferFrom(msg.sender, address(this), salePrice);
-      uint256 afterBalance = token.balanceOf(address(this));
-      require(beforeBalance + salePrice == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
-
-      // if no curator, add payment to creator
-      if(auctions[auctionId].curator == address(0)){
-        token.safeTransfer(
-          auctions[auctionId].creator,
-          salePrice
-        );
-      }
-
-      // else split payment between curator and creator
-      else {
-        uint256 curatorFee = (salePrice.mul(auctions[auctionId].curatorRoyaltyBPS)).div(10000);
-        token.safeTransfer(
-          auctions[auctionId].curator,
-          curatorFee
-        );
-
-        uint256 creatorFee = salePrice.sub(curatorFee);
-        token.safeTransfer(
-          auctions[auctionId].creator,
-          creatorFee
-        );
-      }
+      _handlePurchasePayment(auctionId, salePrice);
     }
+
+    address[] memory toMint = new address[](1);
+    toMint[0] = msg.sender;
 
     uint256 atEditionId = IEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
 
@@ -253,71 +213,33 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
    * @notice Purchases an NFT
    * @dev mints an NFT and splits purchase fee between creator and curator
    * @param auctionId the id of the auction
-   * @param amount the amount of erc-20 tokens paid to mint
+   * @param value the amount paid in erc-20 tokens to mint
    * @param seed the seed of the NFT to mint
    * @return the id of the NFT
    */
-  function purchase(uint256 auctionId, uint256 amount, uint256 seed) external payable override auctionExists(auctionId) returns (uint256){
+  function purchase(uint256 auctionId, uint256 value, uint256 seed) external payable override auctionExists(auctionId) returns (uint256){
+    // TODO: refactor to _checkAuction
     require(auctions[auctionId].approved, "Auction has not been approved");
     require(block.timestamp >= auctions[auctionId].startTimestamp, "Auction has not started yet");
     require( _numberCanMint(auctionId) != 0, "Sold out");
 
     uint256 salePrice = _getSalePrice(auctionId);
-    require(amount >= salePrice, "Must be more or equal to sale price");
+    require(value >= salePrice, "Must be more or equal to sale price");
+
+    // if not free handle payment
+    if(salePrice != 0){
+      _handlePurchasePayment(auctionId, salePrice);
+    }
 
     MintData[] memory toMint = new MintData[](1);
     toMint[0] = MintData(msg.sender, seed);
-
-    // if not free carry out purchase
-    if(salePrice != 0){
-
-      IERC20 token = IERC20(auctions[auctionId].auctionCurrency);
-
-      // NOTE: msg.sender would need to approve this contract with currency before making a purchase
-      // If intergrating with zora v3 the market would hold the funds and handle royalties differently.
-      // through royalties finders, and protocal fees
-      // TODO: respect royalties on NFT contract (v3 intergration could solve this)
-
-      // NOTE: modified from v3 for now. A full intergration would be better if we go that route
-      // https://github.com/ourzora/v3/blob/main/contracts/common/IncomingTransferSupport/V1/IncomingTransferSupportV1.sol
-
-      // We must check the balance that was actually transferred to this contract,
-      // as some tokens impose a transfer fee and would not actually transfer the
-      // full amount to the market, resulting in potentally locked funds
-      uint256 beforeBalance = token.balanceOf(address(this));
-      token.safeTransferFrom(msg.sender, address(this), salePrice);
-      uint256 afterBalance = token.balanceOf(address(this));
-      require(beforeBalance + salePrice == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
-
-      // if no curator, add payment to creator
-      if(auctions[auctionId].curator == address(0)){
-        token.safeTransfer(
-          auctions[auctionId].creator,
-          salePrice
-        );
-      }
-
-      // else split payment between curator and creator
-      else {
-        uint256 curatorFee = (salePrice.mul(auctions[auctionId].curatorRoyaltyBPS)).div(10000);
-        token.safeTransfer(
-          auctions[auctionId].curator,
-          curatorFee
-        );
-
-        uint256 creatorFee = salePrice.sub(curatorFee);
-        token.safeTransfer(
-          auctions[auctionId].creator,
-          creatorFee
-        );
-      }
-    }
 
     uint256 atEditionId = ISeededEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
 
     // subtract 1 to get the id of the token minted
     uint256 tokenId = atEditionId.sub(1);
 
+    // TODO: add emit SeededEditionPurchased event
     emit EditionPurchased(
       auctionId,
       auctions[auctionId].edition.id,
@@ -354,6 +276,51 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
    */
   function getSalePrice(uint256 auctionId) external view override returns (uint256) {
     return _getSalePrice(auctionId);
+  }
+
+  function _handlePurchasePayment(uint256 auctionId, uint256 salePrice) internal{
+    IERC20 token = IERC20(auctions[auctionId].auctionCurrency);
+
+    // NOTE: msg.sender would need to approve this contract with currency before making a purchase
+    // If intergrating with zora v3 the market would hold the funds and handle royalties differently.
+    // through royalties finders, and protocal fees
+    // TODO: respect royalties on NFT contract (v3 intergration could solve this)
+
+    // NOTE: modified from v3 for now. A full intergration would be better if we go that route
+    // https://github.com/ourzora/v3/blob/main/contracts/common/IncomingTransferSupport/V1/IncomingTransferSupportV1.sol
+
+    // We must check the balance that was actually transferred to this contract,
+    // as some tokens impose a transfer fee and would not actually transfer the
+    // full amount to the market, resulting in potentally locked funds
+    uint256 beforeBalance = token.balanceOf(address(this));
+    token.safeTransferFrom(msg.sender, address(this), salePrice);
+    uint256 afterBalance = token.balanceOf(address(this));
+    require(beforeBalance + salePrice == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
+
+    // if no curator, add payment to creator
+    if(auctions[auctionId].curator == address(0)){
+      token.safeTransfer(
+        auctions[auctionId].creator,
+        salePrice
+      );
+    }
+
+    // else split payment between curator and creator
+    else {
+      uint256 curatorFee = (salePrice.mul(auctions[auctionId].curatorRoyaltyBPS)).div(10000);
+      token.safeTransfer(
+        auctions[auctionId].curator,
+        curatorFee
+      );
+
+      uint256 creatorFee = salePrice.sub(curatorFee);
+      token.safeTransfer(
+        auctions[auctionId].creator,
+        creatorFee
+      );
+    }
+
+    return;
   }
 
   function _numberCanMint(uint256 auctionId) internal view returns (uint256) {
