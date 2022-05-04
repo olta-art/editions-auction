@@ -268,7 +268,7 @@ describe("EditionsAuction", () => {
     // TODO: revert if auction doesn't exist
   })
 
-  describe("#purchase(uint256 auctionId, uint256 amount", async () => {
+  describe("#purchase(uint256 auctionId, uint256 amount)", async () => {
     let auction: any
 
     beforeEach(async () => {
@@ -325,6 +325,31 @@ describe("EditionsAuction", () => {
       await expect(
          EditionsAuction["purchase(uint256,uint256)"](0, ethers.utils.parseEther("0.2"))
       ).to.be.revertedWith("Must be more or equal to sale price")
+    })
+
+    it("should revert if editions contract is seeded implenetation", async () => {
+      // create seeded edition and auction
+      const seededEdition = await createSeededEdition()
+
+      // create seeded auction, id = 1
+      await createAuction(creator, {
+        edition: {
+          id: seededEdition.address,
+          implementation: Implementation.seededEditions
+        }
+      })
+      const seededAuction = await EditionsAuction.auctions(1)
+
+      // approve EditionsAuction for minting
+      await seededEdition.connect(creator)
+        .setApprovedMinter(EditionsAuction.address, true)
+
+      // move to when auction starts
+      await mineToTimestamp(seededAuction.startTimestamp)
+
+      await expect(
+        EditionsAuction["purchase(uint256,uint256)"](1, ethers.utils.parseEther("0.2"))
+      ).to.be.revertedWith("Must be edition contract")
     })
 
     it("should purchase", async () => {
@@ -469,7 +494,7 @@ describe("EditionsAuction", () => {
       // create not seeded edtion and auction
       notSeededEdition = await createEdition()
       await createAuction()
-      notSeededAuction = await EditionsAuction.auctions(0)
+      notSeededAuction = await EditionsAuction.auctions(1)
 
       // give collector some weth
       await weth.connect(collector).deposit({ value: ethers.utils.parseEther("1.0") });
@@ -485,23 +510,19 @@ describe("EditionsAuction", () => {
       await mineToTimestamp(seededAuction.startTimestamp)
     })
 
-    it.only("should revert if editions is not seeded implementation", async () => {
-      // note[George]: currently throws Error:
-      // invalid BigNumber value (argument="value", value=undefined, code=INVALID_ARGUMENT, version=bignumber/5.5.0)
-
-      // potentially a exsesive gas used, not sure if there is a quicker way to revert
+    it("should revert if editions is not seeded implementation", async () => {
       const seed = 5
       await expect(
          EditionsAuction.connect(collector)
-          ["purchase(uint256,uint256,uint256)"](notSeededAuction.id, ethers.utils.parseEther("1.0"), seed)
-      ).to.be.reverted
+          ["purchase(uint256,uint256,uint256)"](1, ethers.utils.parseEther("1.0"), seed)
+      ).to.be.revertedWith("Must be seeded edition contract")
     })
 
     it("should purchase", async () => {
       const seed = 5
       expect(
         await EditionsAuction.connect(collector)
-          ["purchase(uint256,uint256,uint256)"](seededAuction.id, ethers.utils.parseEther("1.0"), seed)
+          ["purchase(uint256,uint256,uint256)"](0, ethers.utils.parseEther("1.0"), seed)
       ).to.emit(EditionsAuction, "SeededEditionPurchased")
 
       // check token balance

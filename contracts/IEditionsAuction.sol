@@ -1,9 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
 
+enum Implementation {
+  edition,
+  seededEdition
+}
+
 struct Edition {
   address id;
-  uint8 implementation;
+  Implementation implementation;
 }
 
 struct Step {

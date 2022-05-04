@@ -15,7 +15,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IEditionSingleMintable} from "./editions-nft/IEditionSingleMintable.sol";
 import {ISeededEditionSingleMintable, MintData} from "./editions-nft/ISeededEditionSingleMintable.sol";
-import {IEditionsAuction, Edition, Step} from "./IEditionsAuction.sol";
+import {IEditionsAuction, Edition, Step, Implementation} from "./IEditionsAuction.sol";
 
 /**
  * @title An open dutch auction house, for initial drops of limited edition nft contracts.
@@ -56,8 +56,8 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
    */
   constructor() {
     minStepTime = 2 * 60; // 2 minutes
-    editionsImplentaion_interfaceIds[0] = 0x2fc51e5a;
-    editionsImplentaion_interfaceIds[1] = 0x26057e5e;
+    editionsImplentaion_interfaceIds[uint8(Implementation.edition)] = 0x2fc51e5a;
+    editionsImplentaion_interfaceIds[uint8(Implementation.seededEdition)] = 0x26057e5e;
   }
 
   /**
@@ -92,7 +92,9 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     );
 
     require(
-      IERC165(edition.id).supportsInterface(editionsImplentaion_interfaceIds[edition.implementation]),
+      IERC165(edition.id).supportsInterface(
+        editionsImplentaion_interfaceIds[uint8(edition.implementation)]
+      ),
       "Doesn't support chosen Editions interface"
     );
 
@@ -189,6 +191,12 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     auctionPurchaseChecks(auctionId)
     returns (uint256)
   {
+    // check edtions contract is standard implementation
+    require(
+      auctions[auctionId].edition.implementation == Implementation.edition,
+      "Must be edition contract"
+    );
+
     uint256 salePrice = _getSalePrice(auctionId);
     require(value >= salePrice, "Must be more or equal to sale price");
 
@@ -200,6 +208,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     address[] memory toMint = new address[](1);
     toMint[0] = msg.sender;
 
+    // mint new nft
     uint256 atEditionId = IEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
 
     // subtract 1 to get the id of the token minted
@@ -232,6 +241,13 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     auctionPurchaseChecks(auctionId)
     returns (uint256)
   {
+    // check edtions contract is seeded implementation
+    require(
+      auctions[auctionId].edition.implementation == Implementation.seededEdition,
+      "Must be seeded edition contract"
+    );
+
+    // check value is more or equal to current sale price
     uint256 salePrice = _getSalePrice(auctionId);
     require(value >= salePrice, "Must be more or equal to sale price");
 
@@ -243,6 +259,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     MintData[] memory toMint = new MintData[](1);
     toMint[0] = MintData(msg.sender, seed);
 
+    // mint new nft
     uint256 atEditionId = ISeededEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
 
     // subtract 1 to get the id of the token minted
