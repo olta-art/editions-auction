@@ -1,17 +1,31 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
 
+enum Implementation {
+  edition,
+  seededEdition
+}
+
+struct Edition {
+  address id;
+  Implementation implementation;
+}
+
+struct Step {
+  uint256 price;
+  uint256 time;
+}
+
 interface IEditionsAuction {
   struct Auction {
-    address editionContract;
+    Edition edition;
     uint256 startTimestamp;
     uint256 duration;
     uint256 startPrice;
     uint256 endPrice;
     uint8 numberOfPriceDrops;
     address creator;
-    uint256 stepPrice;
-    uint256 stepTime;
+    Step step;
     bool approved;
     address curator;
     uint256 curatorRoyaltyBPS;
@@ -26,10 +40,19 @@ interface IEditionsAuction {
     address owner
   );
 
+  event SeededEditionPurchased(
+    uint256 auctionId,
+    address tokenContract,
+    uint256 tokenId,
+    uint256 seed,
+    uint256 price,
+    address owner
+  );
+
   event AuctionCreated(
     uint256 auctionId,
     address creator,
-    address editionContract,
+    Edition edition,
     uint256 startTimestamp,
     uint256 duration,
     uint256 startPrice,
@@ -47,7 +70,7 @@ interface IEditionsAuction {
   );
 
   function createAuction(
-    address editionContract,
+    Edition memory edition,
     uint256 startTimestamp,
     uint256 duration,
     uint256 startPrice,
@@ -63,6 +86,7 @@ interface IEditionsAuction {
   function getSalePrice(uint256 auctionId) external returns (uint256);
 
   function purchase(uint256 auctionId, uint256 amount) external payable returns (uint256);
+  function purchase(uint256 auctionId, uint256 amount, uint256 seed) external payable returns (uint256);
 
   function numberCanMint(uint256 auctionId) external view returns (uint256);
 }

@@ -1,5 +1,5 @@
 import { network } from "hardhat";
-import { BigNumber, ContractTransaction } from "ethers";
+import { BigNumber, BigNumberish, ContractTransaction } from "ethers";
 import { WETH } from "../typechain";
 import { ethers } from "hardhat";
 
@@ -40,4 +40,54 @@ export const getPreviousBlockTimestamp = async () => {
 export const equalWithin = (bn1: BigNumber, bn2: BigNumber, errorMargin: BigNumber) => {
   const difference = bn1.sub(bn2)
   return difference.abs().lte(errorMargin)
+}
+
+// Copied from editions-nft repo
+export enum Implementation {
+  editions,
+  seededEditions
+}
+
+export interface Version {
+  urls: {
+    url: string;
+    sha256hash: string;
+  }[];
+  label: Label;
+}
+
+export type Label = [BigNumberish, BigNumberish, BigNumberish]
+
+export const editionData = (
+  name: string,
+  symbol: string,
+  description: string,
+  version: Version,
+  editionSize: BigNumberish,
+  royaltyBPS: BigNumberish
+) => ({
+  name,
+  symbol,
+  description,
+  version,
+  editionSize,
+  royaltyBPS
+})
+
+export const defaultVersion = () => {
+  return {
+    urls: [
+      // image
+      {
+        url: "",
+        sha256hash: "0x0000000000000000000000000000000000000000000000000000000000000000",
+      },
+      // animation
+      {
+        url: "https://ipfs.io/ipfsbafybeify52a63pgcshhbtkff4nxxxp2zp5yjn2xw43jcy4knwful7ymmgy",
+        sha256hash: "0x0000000000000000000000000000000000000000000000000000000000000000"
+      },
+    ],
+    label: [0,0,1] as Label
+  }
 }

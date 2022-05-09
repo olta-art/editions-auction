@@ -7,15 +7,17 @@ import {
   SingleEditionMintableCreator,
   SingleEditionMintable,
   EditionsAuction,
-  WETH
+  WETH,
+  SeededSingleEditionMintable
 } from "../typechain";
 
 import {
-  mine,
-  setAutoMine,
   mineToTimestamp,
   getEventArguments,
   deployWETH,
+  defaultVersion,
+  Implementation,
+  editionData
 } from "./utils"
 
 describe("EditionsAuction", () => {
@@ -29,29 +31,54 @@ describe("EditionsAuction", () => {
 
   const createEdition = async (signer: SignerWithAddress = creator) => {
     const transaction = await SingleEditonCreator.connect(signer).createEdition(
-      "Testing Token",
-      "TEST",
-      "This is a testing token for all",
-      "https://ipfs.io/ipfsbafybeify52a63pgcshhbtkff4nxxxp2zp5yjn2xw43jcy4knwful7ymmgy",
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "",
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      10,
-      10
+      editionData(
+        "Testing Token",
+        "TEST",
+        "This is a testing token for all",
+        defaultVersion(),
+        10,
+        10
+      ),
+      Implementation.editions
     );
     const [id] = await getEventArguments(transaction, "CreatedEdition")
-    const editionResult = await SingleEditonCreator.getEditionAtId(id)
-    const SingleEditionContract = (await ethers.getContractAt(
-      "SingleEditionMintable",
-      editionResult
-    )) as SingleEditionMintable;
+    const editionResult = await SingleEditonCreator.getEditionAtId(id, Implementation.editions)
 
-    return SingleEditionContract
+    const { abi } = await deployments.get("SingleEditionMintable")
+    return (await ethers.getContractAt(
+      abi,
+      editionResult
+    )) as SingleEditionMintable
+  }
+
+  const createSeededEdition = async (signer: SignerWithAddress = creator) => {
+    const transaction = await SingleEditonCreator.connect(signer).createEdition(
+      editionData(
+        "Testing Token",
+        "TEST",
+        "This is a testing token for all",
+        defaultVersion(),
+        10,
+        10
+      ),
+      Implementation.seededEditions
+    )
+    const [id] = await getEventArguments(transaction, "CreatedEdition")
+    const editionResult = await SingleEditonCreator.getEditionAtId(id, Implementation.seededEditions)
+
+    const { abi } = await deployments.get("SeededSingleEditionMintable")
+    return (await ethers.getContractAt(
+      abi,
+      editionResult
+    )) as SeededSingleEditionMintable
   }
 
   const createAuction = async (signer: SignerWithAddress = creator, options = {}) => {
     const defaults = {
-      editionContract: SingleEdition.address,
+      edition: {
+        id: SingleEdition.address,
+        implementation: Implementation.editions
+      },
       startTime: Math.floor((Date.now() / 1000)) + 60 * 2, // now + 2 mins
       duration: 60 * 8, // 8 minutes
       startPrice: ethers.utils.parseEther("1.0"),
@@ -65,7 +92,7 @@ describe("EditionsAuction", () => {
     const params = {...defaults, ...options}
 
     return EditionsAuction.connect(signer).createAuction(
-      params.editionContract,
+      params.edition,
       params.startTime,
       params.duration,
       params.startPrice,
@@ -80,12 +107,12 @@ describe("EditionsAuction", () => {
   beforeEach(async () => {
     const { SingleEditionMintableCreator, EditionsAuction: EditionsAuctionContract } = await deployments.fixture([
       "SingleEditionMintableCreator",
-      "SingleEditionMintable",
       "EditionsAuction"
     ]);
 
+    // const SingleEditonCreatorArtifact = await deployments.getArtifact("SingleEditionMintableCreator")
     SingleEditonCreator = (await ethers.getContractAt(
-      "SingleEditionMintableCreator",
+      SingleEditionMintableCreator.abi,
       SingleEditionMintableCreator.address
     )) as SingleEditionMintableCreator;
 
@@ -103,7 +130,7 @@ describe("EditionsAuction", () => {
     weth = await deployWETH()
   })
 
-  describe("#CreateAuctionDrop()", async () => {
+  describe("#CreateAuction()", async () => {
 
     it("reverts if editions contract doesnt support NFT interface", async () => {
       const { BadERC721 } = await deployments.fixture([
@@ -111,7 +138,7 @@ describe("EditionsAuction", () => {
       ]);
       await expect(
         createAuction(creator, {
-          editionContract: BadERC721.address
+          edition: {id: BadERC721.address, implementation: Implementation.editions}
         })
       ).to.be.revertedWith("Doesn't support NFT interface")
     })
@@ -187,21 +214,19 @@ describe("EditionsAuction", () => {
 
       const auction = await EditionsAuction.auctions(0)
 
-      expect(auction.editionContract).to.eq(SingleEdition.address)
+      expect(auction.edition.id).to.eq(SingleEdition.address)
       expect(auction.startTimestamp).to.eq(startTime)
       expect(auction.duration).to.eq(8 * 60)
       expect(auction.startPrice).to.eq(ethers.utils.parseEther("1.0"))
       expect(auction.endPrice).to.eq(ethers.utils.parseEther("0.2"))
       expect(auction.numberOfPriceDrops).to.eq(4)
-      expect(auction.stepPrice).to.eq(ethers.utils.parseEther("0.2"))
-      expect(auction.stepTime).to.eq(60*2)
+      expect(auction.step.price).to.eq(ethers.utils.parseEther("0.2"))
+      expect(auction.step.time).to.eq(60*2)
       expect(auction.curator).to.eq(ethers.constants.AddressZero)
       expect(auction.curatorRoyaltyBPS).to.eq(0)
       expect(auction.approved).to.eq(true) // auto approves
       expect(auction.auctionCurrency).to.eq(weth.address)
     })
-
-    // TODO: check random params to make sure stepPrice and stepTime always act as expected
   })
 
   describe("#getSalePrice()", async () => {
@@ -220,10 +245,10 @@ describe("EditionsAuction", () => {
     it("should drop the price at set intervals during auction", async () => {
       for(let i = 1; i <= auction.numberOfPriceDrops; i++){
         // move the blocks along
-        const time = auction.startTimestamp.add(auction.stepTime.mul(i))
+        const time = auction.startTimestamp.add(auction.step.time.mul(i))
         await mineToTimestamp(time)
 
-        const expectedPrice = auction.startPrice.sub(auction.stepPrice.mul(i - 1))
+        const expectedPrice = auction.startPrice.sub(auction.step.price.mul(i - 1))
 
         expect(
           await EditionsAuction.getSalePrice(0)
@@ -243,7 +268,7 @@ describe("EditionsAuction", () => {
     // TODO: revert if auction doesn't exist
   })
 
-  describe("#purchase()", async () => {
+  describe("#purchase(uint256 auctionId, uint256 amount)", async () => {
     let auction: any
 
     beforeEach(async () => {
@@ -254,7 +279,7 @@ describe("EditionsAuction", () => {
 
     it("should revert if auction hasn't started yet", async () => {
       await expect(
-        EditionsAuction.purchase(0, ethers.utils.parseEther("1.0"))
+        EditionsAuction["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       ).to.be.revertedWith("Auction has not started yet")
     })
 
@@ -270,7 +295,7 @@ describe("EditionsAuction", () => {
       await mineToTimestamp(auction.startTimestamp)
 
       await expect(
-        EditionsAuction.connect(collectorB).purchase(0, ethers.utils.parseEther("1.0"))
+        EditionsAuction.connect(collectorB)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       ).to.be.revertedWith("SafeERC20: low-level call failed")
     })
 
@@ -289,7 +314,7 @@ describe("EditionsAuction", () => {
       await weth.connect(collectorB).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
 
       await expect(
-        EditionsAuction.connect(collectorB).purchase(0, ethers.utils.parseEther("1.0"))
+        EditionsAuction.connect(collectorB)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       ).to.be.revertedWith("SafeERC20: low-level call failed")
     })
 
@@ -298,8 +323,33 @@ describe("EditionsAuction", () => {
       await mineToTimestamp(auction.startTimestamp)
 
       await expect(
-         EditionsAuction.purchase(0, ethers.utils.parseEther("0.2"))
+         EditionsAuction["purchase(uint256,uint256)"](0, ethers.utils.parseEther("0.2"))
       ).to.be.revertedWith("Must be more or equal to sale price")
+    })
+
+    it("should revert if editions contract is seeded implenetation", async () => {
+      // create seeded edition and auction
+      const seededEdition = await createSeededEdition()
+
+      // create seeded auction, id = 1
+      await createAuction(creator, {
+        edition: {
+          id: seededEdition.address,
+          implementation: Implementation.seededEditions
+        }
+      })
+      const seededAuction = await EditionsAuction.auctions(1)
+
+      // approve EditionsAuction for minting
+      await seededEdition.connect(creator)
+        .setApprovedMinter(EditionsAuction.address, true)
+
+      // move to when auction starts
+      await mineToTimestamp(seededAuction.startTimestamp)
+
+      await expect(
+        EditionsAuction["purchase(uint256,uint256)"](1, ethers.utils.parseEther("0.2"))
+      ).to.be.revertedWith("Must be edition contract")
     })
 
     it("should purchase", async () => {
@@ -315,7 +365,7 @@ describe("EditionsAuction", () => {
 
       // purchase
       expect(
-        await EditionsAuction.connect(collector).purchase(0, ethers.utils.parseEther("1.0"))
+        await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       ).to.emit(EditionsAuction, "EditionPurchased")
 
       // check token balance
@@ -348,7 +398,7 @@ describe("EditionsAuction", () => {
 
       // purchase edition
       await EditionsAuction.connect(collector)
-        .purchase(1, ethers.utils.parseEther("1.0"))
+        ["purchase(uint256,uint256)"](1, ethers.utils.parseEther("1.0"))
 
       // curator
       expect(
@@ -368,7 +418,7 @@ describe("EditionsAuction", () => {
       await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
 
       // move to time to end of auction
-      const timestamp = auction.startTimestamp.add(auction.stepTime.mul(5))
+      const timestamp = auction.startTimestamp.add(auction.step.time.mul(5))
       await mineToTimestamp(timestamp)
 
       const balanceBefore = await weth.balanceOf(await collector.getAddress())
@@ -376,7 +426,7 @@ describe("EditionsAuction", () => {
       // purchase edition
       expect(
         await EditionsAuction.connect(collector)
-          .purchase(0, ethers.utils.parseEther("1.0"))
+          ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       ).to.emit(EditionsAuction, "EditionPurchased")
 
       const balanceAfter = await weth.balanceOf(await collector.getAddress())
@@ -409,7 +459,7 @@ describe("EditionsAuction", () => {
         let leftToMint = (await EditionsAuction.numberCanMint(0)).toNumber()
         while(leftToMint > 0){
           leftToMint--
-          yield await EditionsAuction.connect(collector).purchase(0, ethers.utils.parseEther("1.0"))
+          yield await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
         }
       }
 
@@ -420,8 +470,65 @@ describe("EditionsAuction", () => {
 
       // purchase when no editons left
       await expect(
-        EditionsAuction.connect(collector).purchase(0, ethers.utils.parseEther("1.0"))
+        EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       ).to.be.revertedWith("Sold out")
+    })
+  })
+
+  describe("#purchase(uint256 auctionId, uint256 amount, uint256 seed)", () => {
+    let seededEdition: SeededSingleEditionMintable
+    let seededAuction: any
+    let notSeededEdition: SingleEditionMintable
+    let notSeededAuction: any
+    beforeEach( async () => {
+      // create seeded edition and auction
+      seededEdition = await createSeededEdition()
+      await createAuction(creator, {
+        edition: {
+          id: seededEdition.address,
+          implementation: Implementation.seededEditions
+        }
+      })
+      seededAuction = await EditionsAuction.auctions(0)
+
+      // create not seeded edtion and auction
+      notSeededEdition = await createEdition()
+      await createAuction()
+      notSeededAuction = await EditionsAuction.auctions(1)
+
+      // give collector some weth
+      await weth.connect(collector).deposit({ value: ethers.utils.parseEther("1.0") });
+
+      // approve auction to spend WETH
+      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+
+      // approve EditionsAuction for minting
+      await seededEdition.connect(creator)
+        .setApprovedMinter(EditionsAuction.address, true)
+
+      // move to when auction starts
+      await mineToTimestamp(seededAuction.startTimestamp)
+    })
+
+    it("should revert if editions is not seeded implementation", async () => {
+      const seed = 5
+      await expect(
+         EditionsAuction.connect(collector)
+          ["purchase(uint256,uint256,uint256)"](1, ethers.utils.parseEther("1.0"), seed)
+      ).to.be.revertedWith("Must be seeded edition contract")
+    })
+
+    it("should purchase", async () => {
+      const seed = 5
+      expect(
+        await EditionsAuction.connect(collector)
+          ["purchase(uint256,uint256,uint256)"](0, ethers.utils.parseEther("1.0"), seed)
+      ).to.emit(EditionsAuction, "SeededEditionPurchased")
+
+      // check token balance
+      expect(
+        await seededEdition.balanceOf(await collector.getAddress())
+      ).to.eq(1)
     })
   })
 

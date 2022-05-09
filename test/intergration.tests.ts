@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import "@nomiclabs/hardhat-ethers";
-import { ethers, deployments, network } from "hardhat";
+import { ethers, deployments } from "hardhat";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
@@ -18,7 +18,10 @@ import {
   deployWETH,
   getRandomInt,
   getPreviousBlockTimestamp,
-  equalWithin
+  equalWithin,
+  editionData,
+  defaultVersion,
+  Implementation
 } from "./utils"
 
 
@@ -37,20 +40,24 @@ describe("EditionsAuction", () => {
 
   const createEdition = async (signer: SignerWithAddress = creator) => {
     const transaction = await SingleEditonCreator.connect(signer).createEdition(
-      "Testing Token",
-      "TEST",
-      "This is a testing token for all",
-      "https://ipfs.io/ipfsbafybeify52a63pgcshhbtkff4nxxxp2zp5yjn2xw43jcy4knwful7ymmgy",
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      "",
-      "0x0000000000000000000000000000000000000000000000000000000000000000",
-      10,
-      10
+      editionData(
+        "Testing Token",
+        "TEST",
+        "This is a testing token for all",
+        defaultVersion(),
+        // 1% royalty since BPS
+        10,
+        10
+      ),
+      Implementation.editions
     );
     const [id] = await getEventArguments(transaction, "CreatedEdition")
-    const editionResult = await SingleEditonCreator.getEditionAtId(id)
+    const editionResult = await SingleEditonCreator.getEditionAtId(id, Implementation.editions)
+
+    // Note[George]: found I had to pass abi here to get this to work
+    const { abi } = await deployments.get("SingleEditionMintable")
     const SingleEditionContract = (await ethers.getContractAt(
-      "SingleEditionMintable",
+      abi,
       editionResult
     )) as SingleEditionMintable;
 
@@ -59,7 +66,7 @@ describe("EditionsAuction", () => {
 
   const createAuction = async (signer: SignerWithAddress = creator, options = {}) => {
     const defaults = {
-      editionContract: SingleEdition.address,
+      edition: {id: SingleEdition.address, implementation: 0},
       startTime: Math.floor((Date.now() / 1000)) + 60 * 2, // now + 2 mins
       duration: 60 * 8, // 8 minutes
       startPrice: ethers.utils.parseEther("1.0"),
@@ -73,7 +80,7 @@ describe("EditionsAuction", () => {
     const params = {...defaults, ...options}
 
     return EditionsAuction.connect(signer).createAuction(
-      params.editionContract,
+      params.edition,
       params.startTime,
       params.duration,
       params.startPrice,
@@ -136,7 +143,7 @@ describe("EditionsAuction", () => {
 
       // make purchase
       const salePrice = await EditionsAuction.getSalePrice(auctionId)
-      return await EditionsAuction.connect(collector).purchase(auctionId, salePrice)
+      return await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](auctionId, salePrice)
     }
 
     // generator function
@@ -169,7 +176,7 @@ describe("EditionsAuction", () => {
     // purchase when no editons left
     const salePrice = await EditionsAuction.getSalePrice(0)
     await expect(
-      EditionsAuction.connect(collector).purchase(0, salePrice)
+      EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, salePrice)
     ).to.be.revertedWith("Sold out")
 
     return total
@@ -183,7 +190,7 @@ describe("EditionsAuction", () => {
     ]);
 
     SingleEditonCreator = (await ethers.getContractAt(
-      "SingleEditionMintableCreator",
+      SingleEditionMintableCreator.abi,
       SingleEditionMintableCreator.address
     )) as SingleEditionMintableCreator;
 
@@ -346,7 +353,6 @@ describe("EditionsAuction", () => {
   })
 
 
-  //TODO: stress test multiple auctions lots of purchases
   describe("WETH auction with no curator", async () => {
     let auction: any
     beforeEach(async () => {
@@ -375,17 +381,17 @@ describe("EditionsAuction", () => {
 
       // purchase two edition's
       await EditionsAuction.connect(collectorA)
-        .purchase(0, ethers.utils.parseEther("1.0"))
+        ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       await EditionsAuction.connect(collectorA)
-        .purchase(0, ethers.utils.parseEther("1.0"))
+        ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
 
       // purchase one edition
       await EditionsAuction.connect(collectorB)
-        .purchase(0, ethers.utils.parseEther("1.0"))
+        ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
 
       // wrong price
       await EditionsAuction.connect(collectorC)
-        .purchase(0, ethers.utils.parseEther("0.9"))
+        ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("0.9"))
 
       // check token balance
       expect(
