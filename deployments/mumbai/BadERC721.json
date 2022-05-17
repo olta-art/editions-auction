@@ -1,0 +1,75 @@
+{
+  "address": "0xF459134c814C0a744A62763BE5A2A1E06b01eb83",
+  "abi": [
+    {
+      "inputs": [
+        {
+          "internalType": "bytes4",
+          "name": "_interface",
+          "type": "bytes4"
+        }
+      ],
+      "name": "supportsInterface",
+      "outputs": [
+        {
+          "internalType": "bool",
+          "name": "",
+          "type": "bool"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    }
+  ],
+  "transactionHash": "0x1575d6932f21a26780be5487b73fcfe594003c87ea29b8103c4aeeb1233a9ee9",
+  "receipt": {
+    "to": null,
+    "from": "0x5f0009F23251fEB0f58c8e3aAb8E096Af16FaECD",
+    "contractAddress": "0xF459134c814C0a744A62763BE5A2A1E06b01eb83",
+    "transactionIndex": 24,
+    "gasUsed": "92943",
+    "logsBloom": "0x0000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000800000000000000000000000000000000000000000000000000000000080000000000000000000010000000000400000000000000000000000000000000000000000000000008000000000000000000000000000000000000000000000000000000000008000000000000000000020000000000000000000000000000000000000000000000000000000000000c000000000000000000001000000000000000000000000000000100040000000000000000000000000000000000000000000000000000000000000010000100000",
+    "blockHash": "0xfeac69d5c366fec1a6a1e18fc8c5d03f9b221daf4e456eb78221edc66cdc94f0",
+    "transactionHash": "0x1575d6932f21a26780be5487b73fcfe594003c87ea29b8103c4aeeb1233a9ee9",
+    "logs": [
+      {
+        "transactionIndex": 24,
+        "blockNumber": 26347774,
+        "transactionHash": "0x1575d6932f21a26780be5487b73fcfe594003c87ea29b8103c4aeeb1233a9ee9",
+        "address": "0x0000000000000000000000000000000000001010",
+        "topics": [
+          "0x4dfe1bbbcf077ddc3e01291eea2d5c70c2b422b415d95645b9adcfd678cb1d63",
+          "0x0000000000000000000000000000000000000000000000000000000000001010",
+          "0x0000000000000000000000005f0009f23251feb0f58c8e3aab8e096af16faecd",
+          "0x000000000000000000000000be188d6641e8b680743a4815dfa0f6208038960f"
+        ],
+        "data": "0x0000000000000000000000000000000000000000000000000002a43fd3ef165b0000000000000000000000000000000000000000000000002147c2bc5fdb64820000000000000000000000000000000000000000000016d8e387fccf9d25be0c00000000000000000000000000000000000000000000000021451e7c8bec4e270000000000000000000000000000000000000000000016d8e38aa10f7114d467",
+        "logIndex": 80,
+        "blockHash": "0xfeac69d5c366fec1a6a1e18fc8c5d03f9b221daf4e456eb78221edc66cdc94f0"
+      }
+    ],
+    "blockNumber": 26347774,
+    "cumulativeGasUsed": "6346672",
+    "status": 1,
+    "byzantium": true
+  },
+  "args": [],
+  "solcInputHash": "862c60ce3f955013fa62576060033db1",
+  "metadata": "{\"compiler\":{\"version\":\"0.8.6+commit.11564f7e\"},\"language\":\"Solidity\",\"output\":{\"abi\":[{\"inputs\":[{\"internalType\":\"bytes4\",\"name\":\"_interface\",\"type\":\"bytes4\"}],\"name\":\"supportsInterface\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}],\"devdoc\":{\"kind\":\"dev\",\"methods\":{},\"version\":1},\"userdoc\":{\"kind\":\"user\",\"methods\":{},\"version\":1}},\"settings\":{\"compilationTarget\":{\"contracts/test/BadERC721.sol\":\"BadERC721\"},\"evmVersion\":\"berlin\",\"libraries\":{},\"metadata\":{\"bytecodeHash\":\"ipfs\",\"useLiteralContent\":true},\"optimizer\":{\"enabled\":true,\"runs\":100},\"remappings\":[]},\"sources\":{\"contracts/test/BadERC721.sol\":{\"content\":\"// SPDX-License-Identifier: GPL-3.0\\n\\n// FOR TEST PURPOSES ONLY. NOT PRODUCTION SAFE\\npragma solidity 0.8.6;\\n\\ncontract BadERC721 {\\n    function supportsInterface(bytes4 _interface) public  returns (bool){\\n        return false;\\n    }\\n}\",\"keccak256\":\"0xf2b9691454b01bdd8f88418eed307f40c2080af49f376dc4544a3d09a55f2a08\",\"license\":\"GPL-3.0\"}},\"version\":1}",
+  "bytecode": "0x608060405234801561001057600080fd5b5060b78061001f6000396000f3fe6080604052348015600f57600080fd5b506004361060285760003560e01c806301ffc9a714602d575b600080fd5b603e60383660046052565b50600090565b604051901515815260200160405180910390f35b600060208284031215606357600080fd5b81356001600160e01b031981168114607a57600080fd5b939250505056fea2646970667358221220c16c74f3934dfa69553c02962c0c4e37610c4e9fe29d079f1f0691d5cec9f53864736f6c63430008060033",
+  "deployedBytecode": "0x6080604052348015600f57600080fd5b506004361060285760003560e01c806301ffc9a714602d575b600080fd5b603e60383660046052565b50600090565b604051901515815260200160405180910390f35b600060208284031215606357600080fd5b81356001600160e01b031981168114607a57600080fd5b939250505056fea2646970667358221220c16c74f3934dfa69553c02962c0c4e37610c4e9fe29d079f1f0691d5cec9f53864736f6c63430008060033",
+  "devdoc": {
+    "kind": "dev",
+    "methods": {},
+    "version": 1
+  },
+  "userdoc": {
+    "kind": "user",
+    "methods": {},
+    "version": 1
+  },
+  "storageLayout": {
+    "storage": [],
+    "types": null
+  }
+}

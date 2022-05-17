@@ -56,6 +56,7 @@ const config: HardhatUserConfig = {
     ]
   },
   external: {
+    // note: comment out to deploy to live networks
     contracts: [
       {
         artifacts: process.env.PATH_TO_EDITIONS_CONTRACTS + "artifacts",
@@ -63,7 +64,8 @@ const config: HardhatUserConfig = {
       },
     ],
     deployments : {
-      localhost: ["./deployments"]
+      localhost: ["./deployments/localhost"],
+      mumbai: [process.env.REL_PATH_TO_EDITIONS_CONTRACTS + "deployments/mumbai"]
     }
   }
 };
