@@ -14,10 +14,19 @@ Please reach out to us on [Olta's discord](https://discord.gg/CAXNKzMa5A) if you
 - [x] Make ERC-20 comptable
 - [x] curator assigned when creating an auction rather than on construction?
 - [x] curator approval
-- [ ] full coverage tests
-- [ ] mumbai deployment
+- [x] mumbai deployment
 - [ ] polygon deployment
 
+---
+
+## Mumbai Deployment
+
+> **Warning:** These contracts are still in development so details are likley to change
+
+The contracts are deployed on mumbai at the following address's
+EditionsAuction: [0xF4baA49b69EA15107d78AD097d2457cDF470E25B](https://mumbai.polygonscan.com/address/0xF4baA49b69EA15107d78AD097d2457cDF470E25B)
+
+---
 
 ### To Run Locally
 
