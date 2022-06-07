@@ -177,6 +177,24 @@ describe("EditionsAuction", () => {
       ).to.be.revertedWith("Royalties would be sent into the void")
     })
 
+    it("reverts if auction already exists for edition contract", async () => {
+      // create auction
+      expect(
+        await createAuction(creator, {
+          curator: ethers.constants.AddressZero,
+          curatorRoyaltyBPS: 0
+        })
+      ).to.emit(EditionsAuction, "AuctionApprovalUpdated")
+
+      // attempt to create 2nd auction
+      await expect(
+        createAuction(creator, {
+          curator: ethers.constants.AddressZero,
+          curatorRoyaltyBPS: 0
+        })
+      ).to.be.revertedWith("Auction already exists")
+    })
+
     it("auto approves if no curator", async () => {
       expect(
         await createAuction(creator, {
@@ -375,11 +393,18 @@ describe("EditionsAuction", () => {
     })
 
     it("should split royalties", async () => {
+
+      const anotherSingleEdition = await createEdition(creator)
+
       // approve EditionsAuction for minting
-      await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+      await anotherSingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
       // create auction with curator
       await createAuction(creator, {
+        edition: {
+          id: anotherSingleEdition.address,
+          implementation: Implementation.editions
+        },
         curator: await curator.getAddress(),
         curatorRoyaltyBPS: 1000
       })

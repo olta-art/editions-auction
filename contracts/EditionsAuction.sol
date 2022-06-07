@@ -31,6 +31,9 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
   bytes4 constant ERC721_interfaceId = 0x80ac58cd; // ERC-721 interface
   bytes4[2] editionsImplentaion_interfaceIds;
 
+  // A mapping of edition contract addresses to bool, declaring if an auction is active
+  mapping (address => bool) private hasActiveAuction;
+
   // A mapping of all the auctions currently running
   mapping (uint256 => IEditionsAuction.Auction) public auctions;
 
@@ -104,7 +107,9 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
 
     address creator = IEditionSingleMintable(edition.id).owner();
     require(msg.sender == creator, "Caller must be creator of editions");
+    require(hasActiveAuction[edition.id] == false, "Auction already exists");
     require(startPrice > endPrice, "Start price must be higher then end price");
+
     if(curator == address(0)){
       require(curatorRoyaltyBPS == 0, "Royalties would be sent into the void");
     }
@@ -135,6 +140,9 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       curatorRoyaltyBPS: curatorRoyaltyBPS,
       auctionCurrency: auctionCurrency
     });
+
+    // set edition to active auction
+    hasActiveAuction[edition.id] = true;
 
     _auctionIdTracker.increment();
 
