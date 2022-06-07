@@ -393,11 +393,18 @@ describe("EditionsAuction", () => {
     })
 
     it("should split royalties", async () => {
+
+      const anotherSingleEdition = await createEdition(creator)
+
       // approve EditionsAuction for minting
-      await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+      await anotherSingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
       // create auction with curator
       await createAuction(creator, {
+        edition: {
+          id: anotherSingleEdition.address,
+          implementation: Implementation.editions
+        },
         curator: await curator.getAddress(),
         curatorRoyaltyBPS: 1000
       })
