@@ -377,17 +377,70 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     }
 
     // return startPrice if auction hasn't started yet
-    if(block.timestamp < auctions[auctionId].startTimestamp.add(auctions[auctionId].step.time)){
+    if(block.timestamp <= auctions[auctionId].startTimestamp.add(auctions[auctionId].step.time)){
       return auctions[auctionId].startPrice;
     }
 
     // calculate price based of block.timestamp
     uint256 timeSinceStart = block.timestamp.sub(auctions[auctionId].startTimestamp);
-    uint256 remainder = timeSinceStart.mod(auctions[auctionId].step.time);
-    uint256 dropNum = timeSinceStart.sub(remainder).div(auctions[auctionId].step.time);
+    uint256 dropTimestamp = _floor(timeSinceStart, auctions[auctionId].step.time);
+    uint256 dropNum = dropTimestamp.div(auctions[auctionId].step.time);
 
     // transalte -1 so endPrice is after auction.duration
-    return auctions[auctionId].startPrice.sub(auctions[auctionId].step.price.mul(dropNum - 1));
+    uint256 price = auctions[auctionId].startPrice.sub(auctions[auctionId].step.price.mul(dropNum - 1));
+
+    return _floor(
+      price,
+      _unit10(auctions[auctionId].step.price, 2)
+    );
+  }
+
+  /**
+   * @dev floors number to nearest specified unit
+   * @param value number to floor
+   * @param unit number specififying the smallest uint to floor to
+   * @return result number floored to nearest unit
+  */
+  function _floor(uint256 value, uint256 unit) internal pure returns (uint256){
+    uint256 remainder = value.mod(unit);
+    return value - remainder;
+  }
+
+  /** @dev calculates exponent from given value number of digits minus the offset
+   * and returns 10 to the power of the resulting exponent
+   * @param value the number of which the exponent is calculated from
+   * @param exponentOffset the number to offset the resulting exponent
+   * @return result 10 to the power of calculated exponent
+   */
+  function _unit10(uint256 value, uint256 exponentOffset) internal pure returns (uint256){
+    uint256 exponent = _getDigits(value);
+
+    if (exponent == 0) {
+        return 0;
+    }
+
+    if(exponent < exponentOffset || exponentOffset == 0){
+      exponentOffset = 1;
+    }
+
+    return 10**(exponent - exponentOffset);
+  }
+
+   /**
+    * @dev gets number of digits of a number
+    * @param value number to count digits of
+    * @return digits number of digits in value
+    */
+  function _getDigits(uint256 value) internal pure returns (uint256) {
+      if (value == 0) {
+          return 0;
+      }
+      uint256 digits;
+      while (value != 0) {
+          digits++;
+          value /= 10;
+      }
+      return digits;
   }
   // TODO: endAuction end everything if sold out remove form auctions mapping?
 }

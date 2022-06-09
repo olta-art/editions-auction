@@ -8,7 +8,8 @@ import {
   SingleEditionMintable,
   EditionsAuction,
   WETH,
-  SeededSingleEditionMintable
+  SeededSingleEditionMintable,
+  ExposedInternals
 } from "../typechain";
 
 import {
@@ -272,6 +273,70 @@ describe("EditionsAuction", () => {
           await EditionsAuction.getSalePrice(0)
         ).to.eq(expectedPrice)
       }
+    })
+
+    it("should quantize price during auction", async () => {
+
+      const anotherSingleEdition = await createEdition(creator)
+
+      // approve EditionsAuction for minting
+      await anotherSingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+
+      const numberOfPriceDrops = 3
+      const startPrice = ethers.utils.parseEther("10.23456")
+      const endPrice = ethers.utils.parseEther("0.1")
+
+      const min = 60
+
+      // create auction with curator
+      await createAuction(creator, {
+        edition: {
+          id: anotherSingleEdition.address,
+          implementation: Implementation.editions
+        },
+        duration: min * 6, // 6 minutes
+        startPrice,
+        endPrice,
+        numberOfPriceDrops
+      })
+      const auction2 = await EditionsAuction.auctions(1)
+
+      // expect ugly looking step price
+      expect(
+        auction2.step.price
+      ).to.equal(
+        ethers.utils.parseUnits("3.378186666666666666")
+      )
+
+      const startTime = auction2.startTimestamp
+
+      await mineToTimestamp(startTime.add(min * 2))
+      expect(
+        await EditionsAuction.getSalePrice(1)
+      ).to.equal(
+        startPrice
+      )
+
+      await mineToTimestamp(startTime.add(min * 4))
+      expect(
+        await EditionsAuction.getSalePrice(1)
+      ).to.equal(
+        ethers.utils.parseUnits("6.8")
+      )
+
+      await mineToTimestamp(startTime.add(min * 6))
+      expect(
+        await EditionsAuction.getSalePrice(1)
+      ).to.equal(
+        ethers.utils.parseUnits("3.4")
+      )
+
+      await mineToTimestamp(startTime.add(min * 8))
+      expect(
+        await EditionsAuction.getSalePrice(1)
+      ).to.equal(
+        endPrice
+      )
     })
 
     it("should be endPrice after auction", async () => {
@@ -589,6 +654,38 @@ describe("EditionsAuction", () => {
       const auction = await EditionsAuction.auctions(0)
       expect(auction.approved).to.eq(true)
       expect(auction.curatorRoyaltyBPS).to.eq(1000)
+    })
+  })
+
+  describe("Internals", () => {
+    let ExposedInternals: ExposedInternals
+    beforeEach(async () => {
+      ExposedInternals = (await (await ethers.getContractFactory("ExposedInternals")).deploy()) as ExposedInternals;
+    })
+
+    describe("#_uint10", async () => {
+      it("returns digits to the power of 10 if exponentOffset is 0", async () => {
+        expect(await ExposedInternals.uint10(1, 0)).to.equal(1)
+        expect(await ExposedInternals.uint10(123, 0)).to.equal(100)
+        expect(await ExposedInternals.uint10(123456789, 0)).to.equal(100000000)
+
+      })
+      it("returns digits to the power of 10 if exponentOffset is larger than digits", async () => {
+        expect(await ExposedInternals.uint10(1, 2)).to.equal(1)
+        expect(await ExposedInternals.uint10(12345, 6)).to.equal(10000)
+      })
+      it("returns 0 if value is 0", async () => {
+        expect(await ExposedInternals.uint10(0, 0)).to.equal(0)
+        expect(await ExposedInternals.uint10(0, 1)).to.equal(0)
+        expect(await ExposedInternals.uint10(0, 10)).to.equal(0)
+      })
+      it("returns digits minus exponent offset to the power of 10 ", async () => {
+        expect(await ExposedInternals.uint10(123, 1)).to.equal(100)
+        expect(await ExposedInternals.uint10(123, 2)).to.equal(10)
+        expect(await ExposedInternals.uint10(123, 3)).to.equal(1)
+
+        expect(await ExposedInternals.uint10(123456789, 9)).to.equal(1)
+      })
     })
   })
 })
