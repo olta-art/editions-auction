@@ -26,7 +26,8 @@ const config: HardhatUserConfig = {
       "BadERC721.sol",
       "SingleEditionMintable.sol",
       "SingleEditionMintableCreator.sol",
-      "ERC721Upgradeable.sol"
+      "ERC721Upgradeable.sol",
+      "ExposedInternals"
     ]
   },
   networks,
