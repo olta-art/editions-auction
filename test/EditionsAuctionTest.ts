@@ -8,7 +8,8 @@ import {
   SingleEditionMintable,
   EditionsAuction,
   WETH,
-  SeededSingleEditionMintable
+  SeededSingleEditionMintable,
+  ExposedInternals
 } from "../typechain";
 
 import {
@@ -653,6 +654,38 @@ describe("EditionsAuction", () => {
       const auction = await EditionsAuction.auctions(0)
       expect(auction.approved).to.eq(true)
       expect(auction.curatorRoyaltyBPS).to.eq(1000)
+    })
+  })
+
+  describe("Internals", () => {
+    let ExposedInternals: ExposedInternals
+    beforeEach(async () => {
+      ExposedInternals = (await (await ethers.getContractFactory("ExposedInternals")).deploy()) as ExposedInternals;
+    })
+
+    describe("#_uint10", async () => {
+      it("returns digits to the power of 10 if exponentOffset is 0", async () => {
+        expect(await ExposedInternals.uint10(1, 0)).to.equal(1)
+        expect(await ExposedInternals.uint10(123, 0)).to.equal(100)
+        expect(await ExposedInternals.uint10(123456789, 0)).to.equal(100000000)
+
+      })
+      it("returns digits to the power of 10 if exponentOffset is larger than digits", async () => {
+        expect(await ExposedInternals.uint10(1, 2)).to.equal(1)
+        expect(await ExposedInternals.uint10(12345, 6)).to.equal(10000)
+      })
+      it("returns 0 if value is 0", async () => {
+        expect(await ExposedInternals.uint10(0, 0)).to.equal(0)
+        expect(await ExposedInternals.uint10(0, 1)).to.equal(0)
+        expect(await ExposedInternals.uint10(0, 10)).to.equal(0)
+      })
+      it("returns digits minus exponent offset to the power of 10 ", async () => {
+        expect(await ExposedInternals.uint10(123, 1)).to.equal(100)
+        expect(await ExposedInternals.uint10(123, 2)).to.equal(10)
+        expect(await ExposedInternals.uint10(123, 3)).to.equal(1)
+
+        expect(await ExposedInternals.uint10(123456789, 9)).to.equal(1)
+      })
     })
   })
 })
