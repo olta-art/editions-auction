@@ -383,8 +383,8 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
 
     // calculate price based of block.timestamp
     uint256 timeSinceStart = block.timestamp.sub(auctions[auctionId].startTimestamp);
-    uint256 remainder = timeSinceStart.mod(auctions[auctionId].step.time);
-    uint256 dropNum = timeSinceStart.sub(remainder).div(auctions[auctionId].step.time);
+    uint256 dropTimestamp = _floor(timeSinceStart, auctions[auctionId].step.time);
+    uint256 dropNum = dropTimestamp.div(auctions[auctionId].step.time);
 
     // transalte -1 so endPrice is after auction.duration
     uint256 price = auctions[auctionId].startPrice.sub(auctions[auctionId].step.price.mul(dropNum - 1));
