@@ -414,9 +414,13 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
    */
   function _unit10(uint256 value, uint256 exponentOffset) internal pure returns (uint256){
     uint256 exponent = _getDigits(value);
-    if(exponent < exponentOffset){
-      // HACK: just make zero for now, will need to account for possible negative overflow
-      exponentOffset = 0;
+
+    if (exponent == 0) {
+        return 0;
+    }
+
+    if(exponent < exponentOffset || exponentOffset == 0){
+      exponentOffset = 1;
     }
 
     return 10**(exponent - exponentOffset);
