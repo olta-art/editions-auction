@@ -591,4 +591,72 @@ describe("EditionsAuction", () => {
       expect(auction.curatorRoyaltyBPS).to.eq(1000)
     })
   })
+
+  describe("#cancelAuction", async () => {
+    it("should revert if not creator or curator", async () => {
+      await createAuction(creator)
+      await expect(
+        EditionsAuction.connect(collector).cancelAuction(0)
+      ).to.be.revertedWith("Must be creator or curator")
+    })
+
+    it("should revert if approved and auction started", async () => {
+
+      await createAuction(creator)
+      const auction = await EditionsAuction.auctions(0)
+      // mine to past start time
+      await mineToTimestamp(auction.startTimestamp)
+
+      await expect(
+        EditionsAuction.connect(creator).cancelAuction(0)
+      ).to.be.revertedWith("Auction has already started")
+    })
+
+    it("should cancel auction before auction started", async () => {
+      // no curator
+      await createAuction(creator)
+      expect(
+        await EditionsAuction.connect(creator).cancelAuction(0)
+      ).to.emit(EditionsAuction, "AuctionCanceled")
+
+      // curator
+      await createAuction(creator, {
+        curator: await curator.getAddress(),
+        curatorRoyaltyBPS: 1000
+      })
+      expect(
+        await EditionsAuction.connect(curator).cancelAuction(1)
+      ).to.emit(EditionsAuction, "AuctionCanceled")
+    })
+
+    it("should cancel if curator has not approved", async () => {
+      // curator
+      await createAuction(creator, {
+        curator: await curator.getAddress(),
+        curatorRoyaltyBPS: 1000
+      })
+
+      const curatedAuction = await EditionsAuction.auctions(0)
+      // mine to start time
+      await mineToTimestamp(curatedAuction.startTimestamp.add(curatedAuction.step.time))
+
+      expect(
+        await EditionsAuction.connect(creator).cancelAuction(0)
+      ).to.emit(EditionsAuction, "AuctionCanceled")
+    })
+
+    it("should emit AuctionCanceled event", async () => {
+      await createAuction(creator)
+      const auction = await EditionsAuction.auctions(0)
+
+      expect(
+        await EditionsAuction.connect(creator).cancelAuction(0)
+      ).to.emit(
+        EditionsAuction, "AuctionCanceled"
+      ).withArgs(
+        0,
+        SingleEdition.address
+      )
+    })
+  })
 })
