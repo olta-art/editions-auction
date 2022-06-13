@@ -69,6 +69,11 @@ interface IEditionsAuction {
     bool approved
   );
 
+  event AuctionCanceled(
+    uint256 auctionId,
+    address editionContract
+  );
+
   function createAuction(
     Edition memory edition,
     uint256 startTimestamp,
@@ -89,4 +94,6 @@ interface IEditionsAuction {
   function purchase(uint256 auctionId, uint256 amount, uint256 seed) external payable returns (uint256);
 
   function numberCanMint(uint256 auctionId) external view returns (uint256);
+
+  function cancelAuction(uint256 auctionId) external;
 }
