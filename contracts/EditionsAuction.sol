@@ -357,6 +357,42 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     return;
   }
 
+    /**
+   * @notice allows creator or curator to cancel an auction before it's started
+   * @dev the caller must be creator or curator and the auction must either
+   * not of started yet or not been approved by the curator
+   * @param auctionId the id of the auction
+   */
+  function cancelAuction(uint256 auctionId) external override {
+    require(
+      msg.sender == auctions[auctionId].creator || msg.sender == auctions[auctionId].curator,
+      "Must be creator or curator"
+    );
+
+    if(!auctions[auctionId].approved){
+      _cancelAuction(auctionId);
+      return;
+    }
+
+    // ensure auction has not started or not been approved
+    require(
+      block.timestamp < auctions[auctionId].startTimestamp,
+      "Auction has already started"
+    );
+
+    _cancelAuction(auctionId);
+  }
+
+  /**
+   * @dev emits auction canceled, sets has ativeauction to false and deletes the auction from storage
+   * @param auctionId the id of the auction
+   */
+  function _cancelAuction(uint256 auctionId) internal {
+    emit AuctionCanceled(auctionId, auctions[auctionId].edition.id);
+    hasActiveAuction[auctions[auctionId].edition.id] = false;
+    delete auctions[auctionId];
+  }
+
   function _numberCanMint(uint256 auctionId) internal view returns (uint256) {
     return IEditionSingleMintable(auctions[auctionId].edition.id).numberCanMint();
   }
