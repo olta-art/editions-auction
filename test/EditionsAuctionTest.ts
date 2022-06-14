@@ -725,6 +725,63 @@ describe("EditionsAuction", () => {
     })
   })
 
+  describe("#endAuction", () => {
+    it("should revert if not creator or curator", async () => {
+      await createAuction(creator)
+      await expect(
+        EditionsAuction.connect(collector).endAuction(0)
+      ).to.be.revertedWith("Must be creator or curator")
+    })
+    it("should revert if auction is not over", async () => {
+      await createAuction(creator)
+      await expect(
+        EditionsAuction.connect(creator).endAuction(0)
+      ).to.be.revertedWith("Auction is not over")
+    })
+    it("should end auction", async () => {
+      await createAuction(creator)
+      const auction = await EditionsAuction.auctions(0)
+
+      // approve EditionsAuction for minting
+      await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+
+      // move to when auction starts
+      await mineToTimestamp(auction.startTimestamp);
+
+      // deposit 10 weth
+      await weth.connect(collector).deposit({ value: ethers.utils.parseEther("10.0") });
+
+      // approve auction to spend 10 WETH
+      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("10.0"))
+
+      const generatePurchases = async function * () {
+        let leftToMint = (await EditionsAuction.numberCanMint(0)).toNumber()
+        while(leftToMint > 0){
+          leftToMint--
+          yield await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
+        }
+      }
+
+      // purchase all editions
+      for await ( const purchase of generatePurchases() ){
+        expect(purchase).to.emit(EditionsAuction, "EditionPurchased")
+      }
+
+      // move to when auction is over
+      await mineToTimestamp(auction.startTimestamp.add(auction.duration));
+
+      // End the auction
+      expect(
+        await EditionsAuction.connect(creator).endAuction(0)
+      ).to.emit(
+        EditionsAuction, "AuctionEnded"
+      ).withArgs(
+        0,
+        SingleEdition.address
+      )
+    })
+  })
+
   describe("Internals", () => {
     let ExposedInternals: ExposedInternals
     beforeEach(async () => {
