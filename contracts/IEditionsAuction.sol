@@ -74,6 +74,11 @@ interface IEditionsAuction {
     address editionContract
   );
 
+  event AuctionEnded(
+    uint256 auctionId,
+    address editionContract
+  );
+
   function createAuction(
     Edition memory edition,
     uint256 startTimestamp,
@@ -96,4 +101,6 @@ interface IEditionsAuction {
   function numberCanMint(uint256 auctionId) external view returns (uint256);
 
   function cancelAuction(uint256 auctionId) external;
+
+  function endAuction(uint256 auctionId) external;
 }
