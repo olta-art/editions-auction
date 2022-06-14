@@ -168,8 +168,6 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     return auctionId;
   }
 
-
-
   function _calcStep (
     uint256 duration,
     uint256 startPrice,
@@ -381,6 +379,23 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     );
 
     _cancelAuction(auctionId);
+  }
+
+  function endAuction(uint256 auctionId) external override {
+    require(
+      msg.sender == auctions[auctionId].creator || msg.sender == auctions[auctionId].curator,
+      "Must be creator or curator"
+    );
+
+    // check the auction has run it's full duration
+    require(
+      block.timestamp > auctions[auctionId].startTimestamp + auctions[auctionId].duration,
+      "Auction is not over"
+    );
+
+    emit AuctionEnded(auctionId, auctions[auctionId].edition.id);
+    hasActiveAuction[auctions[auctionId].edition.id] = false;
+    delete auctions[auctionId];
   }
 
   /**
