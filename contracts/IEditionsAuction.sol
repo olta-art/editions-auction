@@ -25,11 +25,11 @@ interface IEditionsAuction {
     uint256 endPrice;
     uint8 numberOfPriceDrops;
     address creator;
-    Step step;
     bool approved;
     address curator;
     uint256 curatorRoyaltyBPS;
     address auctionCurrency;
+    bool collectorGiveAway;
   }
 
   event EditionPurchased(
@@ -103,4 +103,8 @@ interface IEditionsAuction {
   function cancelAuction(uint256 auctionId) external;
 
   function endAuction(uint256 auctionId) external;
+}
+
+interface ERC721 {
+  function balanceOf(address owner) external view returns (uint256);
 }
