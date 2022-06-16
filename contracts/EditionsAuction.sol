@@ -15,7 +15,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IEditionSingleMintable} from "./editions-nft/IEditionSingleMintable.sol";
 import {ISeededEditionSingleMintable, MintData} from "./editions-nft/ISeededEditionSingleMintable.sol";
-import {IEditionsAuction, Edition, Step, Implementation, ERC721} from "./IEditionsAuction.sol";
+import {IEditionsAuction, Edition, Implementation, ERC721} from "./IEditionsAuction.sol";
 
 /**
  * @title An open dutch auction house, for initial drops of limited edition nft contracts.
