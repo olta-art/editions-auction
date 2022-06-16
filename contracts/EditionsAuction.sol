@@ -15,7 +15,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 import {IEditionSingleMintable} from "./editions-nft/IEditionSingleMintable.sol";
 import {ISeededEditionSingleMintable, MintData} from "./editions-nft/ISeededEditionSingleMintable.sol";
-import {IEditionsAuction, Edition, Step, Implementation} from "./IEditionsAuction.sol";
+import {IEditionsAuction, Edition, Step, Implementation, ERC721} from "./IEditionsAuction.sol";
 
 /**
  * @title An open dutch auction house, for initial drops of limited edition nft contracts.
@@ -114,15 +114,7 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       require(curatorRoyaltyBPS == 0, "Royalties would be sent into the void");
     }
 
-    // NOTE: calc with function to get past CompilerError: Stack too deep,
-    Step memory step = _calcStep(
-      duration,
-      startPrice,
-      endPrice,
-      numberOfPriceDrops
-    );
-
-    require(step.time >= minStepTime, "Step time must be higher than minimuim step time");
+    require(duration.div(numberOfPriceDrops) >= minStepTime, "Step time must be higher than minimuim step time");
 
     uint256 auctionId = _auctionIdTracker.current();
 
@@ -134,11 +126,11 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       endPrice: endPrice,
       numberOfPriceDrops: numberOfPriceDrops,
       creator: creator,
-      step: step,
       approved: false,
       curator: curator,
       curatorRoyaltyBPS: curatorRoyaltyBPS,
-      auctionCurrency: auctionCurrency
+      auctionCurrency: auctionCurrency,
+      collectorGiveAway: false
     });
 
     // set edition to active auction
@@ -168,21 +160,6 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     return auctionId;
   }
 
-  function _calcStep (
-    uint256 duration,
-    uint256 startPrice,
-    uint256 endPrice,
-    uint8 numberOfPriceDrops
-  ) internal pure returns (Step memory) {
-
-    Step memory step;
-
-    step.price = startPrice.sub(endPrice).div(numberOfPriceDrops);
-    step.time = duration.div(numberOfPriceDrops);
-
-    return step;
-  }
-
   /**
    * @dev mints a NFT and splits purchase fee between creator and curator
    * @param auctionId the id of the auction
@@ -203,6 +180,10 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       "Must be edition contract"
     );
 
+    if(auctions[auctionId].collectorGiveAway){
+      return _handleCollectorGiveAway(auctionId);
+    }
+
     uint256 salePrice = _getSalePrice(auctionId);
     require(value >= salePrice, "Must be more or equal to sale price");
 
@@ -211,19 +192,12 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       _handlePurchasePayment(auctionId, salePrice);
     }
 
-    address[] memory toMint = new address[](1);
-    toMint[0] = msg.sender;
-
-    // mint new nft
-    uint256 atEditionId = IEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
-
-    // subtract 1 to get the id of the token minted
-    uint256 tokenId = atEditionId.sub(1);
+    uint256 atEditionId = _handleMint(auctionId);
 
     emit EditionPurchased(
       auctionId,
       auctions[auctionId].edition.id,
-      tokenId,
+      atEditionId - 1,
       salePrice,
       msg.sender
     );
@@ -253,6 +227,10 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       "Must be seeded edition contract"
     );
 
+    if(auctions[auctionId].collectorGiveAway){
+      return _handleCollectorGiveAway(auctionId, seed);
+    }
+
     // check value is more or equal to current sale price
     uint256 salePrice = _getSalePrice(auctionId);
     require(value >= salePrice, "Must be more or equal to sale price");
@@ -262,25 +240,73 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       _handlePurchasePayment(auctionId, salePrice);
     }
 
-    MintData[] memory toMint = new MintData[](1);
-    toMint[0] = MintData(msg.sender, seed);
-
-    // mint new nft
-    uint256 atEditionId = ISeededEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
-
-    // subtract 1 to get the id of the token minted
-    uint256 tokenId = atEditionId.sub(1);
+    uint256 atEditionId = _handleSeededMint(auctionId, seed);
 
     emit SeededEditionPurchased(
       auctionId,
       auctions[auctionId].edition.id,
-      tokenId,
+      atEditionId - 1,
       seed,
       salePrice,
       msg.sender
     );
 
     return atEditionId;
+  }
+
+  function _handleCollectorGiveAway(uint256 auctionId) internal returns (uint256){
+    require(
+      _isCollector(auctions[auctionId].edition.id, msg.sender),
+      "Must be a collector"
+    );
+
+    uint256 atEditionId = _handleMint(auctionId);
+
+    emit EditionPurchased(
+      auctionId,
+      auctions[auctionId].edition.id,
+      atEditionId - 1,
+      0,
+      msg.sender
+    );
+
+    return atEditionId;
+  }
+
+  function _handleCollectorGiveAway(uint256 auctionId, uint256 seed) internal returns (uint256){
+    require(
+      _isCollector(auctions[auctionId].edition.id, msg.sender),
+      "Must be a collector"
+    );
+
+    uint256 atEditionId = _handleSeededMint(auctionId, seed);
+
+    emit SeededEditionPurchased(
+      auctionId,
+      auctions[auctionId].edition.id,
+      atEditionId - 1,
+      seed,
+      0,
+      msg.sender
+    );
+
+    return atEditionId;
+  }
+
+  function _handleMint(uint256 auctionId) internal returns (uint256) {
+    address[] memory toMint = new address[](1);
+    toMint[0] = msg.sender;
+
+    // mint new nft
+    return IEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
+  }
+
+  function _handleSeededMint(uint256 auctionId, uint256 seed) internal returns (uint256) {
+    MintData[] memory toMint = new MintData[](1);
+    toMint[0] = MintData(msg.sender, seed);
+
+    // mint new nft
+    return ISeededEditionSingleMintable(auctions[auctionId].edition.id).mintEditions(toMint);
   }
 
   function numberCanMint(uint256 auctionId) external view override returns (uint256) {
@@ -398,6 +424,10 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
     delete auctions[auctionId];
   }
 
+  function _isCollector(address editionId, address collector) internal view returns (bool) {
+    return (ERC721(editionId).balanceOf(collector) > 0);
+  }
+
   /**
    * @dev emits auction canceled, sets has ativeauction to false and deletes the auction from storage
    * @param auctionId the id of the auction
@@ -427,23 +457,38 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       return auctions[auctionId].endPrice;
     }
 
+    uint256 stepTime = _calcStepTime(auctions[auctionId]);
+
     // return startPrice if auction hasn't started yet
-    if(block.timestamp <= auctions[auctionId].startTimestamp.add(auctions[auctionId].step.time)){
+    if(block.timestamp <= auctions[auctionId].startTimestamp.add(stepTime)){
       return auctions[auctionId].startPrice;
     }
 
     // calculate price based of block.timestamp
     uint256 timeSinceStart = block.timestamp.sub(auctions[auctionId].startTimestamp);
-    uint256 dropTimestamp = _floor(timeSinceStart, auctions[auctionId].step.time);
-    uint256 dropNum = dropTimestamp.div(auctions[auctionId].step.time);
+    uint256 dropNum = _floor(timeSinceStart, stepTime).div(stepTime);
+
+    uint256 stepPrice = _calcStepPrice(auctions[auctionId]);
 
     // transalte -1 so endPrice is after auction.duration
-    uint256 price = auctions[auctionId].startPrice.sub(auctions[auctionId].step.price.mul(dropNum - 1));
+    uint256 price = auctions[auctionId].startPrice.sub(stepPrice.mul(dropNum - 1));
 
     return _floor(
       price,
-      _unit10(auctions[auctionId].step.price, 2)
+      _unit10(stepPrice, 2)
     );
+  }
+
+  function _calcStepPrice(
+    Auction memory auction
+  ) internal pure returns (uint256) {
+      return auction.startPrice.sub(auction.endPrice).div(auction.numberOfPriceDrops);
+  }
+
+  function _calcStepTime(
+    Auction memory auction
+  ) internal pure returns (uint256) {
+      return auction.duration.div(auction.numberOfPriceDrops);
   }
 
   /**
@@ -493,5 +538,4 @@ contract EditionsAuction is IEditionsAuction, ReentrancyGuard{
       }
       return digits;
   }
-  // TODO: endAuction end everything if sold out remove form auctions mapping?
 }
