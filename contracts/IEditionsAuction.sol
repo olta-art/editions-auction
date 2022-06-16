@@ -11,11 +11,6 @@ struct Edition {
   Implementation implementation;
 }
 
-struct Step {
-  uint256 price;
-  uint256 time;
-}
-
 interface IEditionsAuction {
   struct Auction {
     Edition edition;
