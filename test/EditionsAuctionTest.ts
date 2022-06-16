@@ -239,8 +239,6 @@ describe("EditionsAuction", () => {
       expect(auction.startPrice).to.eq(ethers.utils.parseEther("1.0"))
       expect(auction.endPrice).to.eq(ethers.utils.parseEther("0.2"))
       expect(auction.numberOfPriceDrops).to.eq(4)
-      expect(auction.step.price).to.eq(ethers.utils.parseEther("0.2"))
-      expect(auction.step.time).to.eq(60*2)
       expect(auction.curator).to.eq(ethers.constants.AddressZero)
       expect(auction.curatorRoyaltyBPS).to.eq(0)
       expect(auction.approved).to.eq(true) // auto approves
@@ -262,12 +260,14 @@ describe("EditionsAuction", () => {
     })
 
     it("should drop the price at set intervals during auction", async () => {
+      const stepTime = ethers.BigNumber.from(60 * 2)
+      const stepPrice = ethers.utils.parseEther("0.2")
       for(let i = 1; i <= auction.numberOfPriceDrops; i++){
         // move the blocks along
-        const time = auction.startTimestamp.add(auction.step.time.mul(i))
+        const time = auction.startTimestamp.add(stepTime.mul(i))
         await mineToTimestamp(time)
 
-        const expectedPrice = auction.startPrice.sub(auction.step.price.mul(i - 1))
+        const expectedPrice = auction.startPrice.sub(stepPrice.mul(i - 1))
 
         expect(
           await EditionsAuction.getSalePrice(0)
@@ -300,13 +300,6 @@ describe("EditionsAuction", () => {
         numberOfPriceDrops
       })
       const auction2 = await EditionsAuction.auctions(1)
-
-      // expect ugly looking step price
-      expect(
-        auction2.step.price
-      ).to.equal(
-        ethers.utils.parseUnits("3.378186666666666666")
-      )
 
       const startTime = auction2.startTimestamp
 
@@ -507,8 +500,10 @@ describe("EditionsAuction", () => {
 
       await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
 
+      const stepTime = ethers.BigNumber.from(60 * 2)
+
       // move to time to end of auction
-      const timestamp = auction.startTimestamp.add(auction.step.time.mul(5))
+      const timestamp = auction.startTimestamp.add(stepTime.mul(5))
       await mineToTimestamp(timestamp)
 
       const balanceBefore = await weth.balanceOf(await collector.getAddress())
@@ -702,8 +697,10 @@ describe("EditionsAuction", () => {
       })
 
       const curatedAuction = await EditionsAuction.auctions(0)
+
+      const stepTime = ethers.BigNumber.from(60 * 2)
       // mine to start time
-      await mineToTimestamp(curatedAuction.startTimestamp.add(curatedAuction.step.time))
+      await mineToTimestamp(curatedAuction.startTimestamp.add(stepTime))
 
       expect(
         await EditionsAuction.connect(creator).cancelAuction(0)
