@@ -64,6 +64,12 @@ interface IEditionsAuction {
     bool approved
   );
 
+  event CollectorGiveAwayUpdated(
+    uint256 auctionId,
+    address editionContract,
+    bool giveAway
+  );
+
   event AuctionCanceled(
     uint256 auctionId,
     address editionContract
@@ -87,6 +93,8 @@ interface IEditionsAuction {
   ) external returns (uint256);
 
   function setAuctionApproval(uint auctionId, bool approved) external;
+
+  function setCollectorGiveAway(uint256 auctionId, bool giveAway) external;
 
   function getSalePrice(uint256 auctionId) external returns (uint256);
 
