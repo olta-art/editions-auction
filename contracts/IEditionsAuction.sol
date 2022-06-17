@@ -99,7 +99,3 @@ interface IEditionsAuction {
 
   function endAuction(uint256 auctionId) external;
 }
-
-interface ERC721 {
-  function balanceOf(address owner) external view returns (uint256);
-}
