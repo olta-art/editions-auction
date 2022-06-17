@@ -558,6 +558,44 @@ describe("EditionsAuction", () => {
         EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       ).to.be.revertedWith("Sold out")
     })
+
+    describe("during a collector give away:", () => {
+      beforeEach(async () => {
+        // approve EditionsAuction for minting
+        await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+
+        // move to when auction is over
+        await mineToTimestamp(auction.startTimestamp.add(auction.duration));
+
+        // deposit 10 weth
+        await weth.connect(collector).deposit({ value: ethers.utils.parseEther("10.0") });
+        // approve auction to spend 10 WETH
+        await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("10.0"))
+      })
+
+      it("should revert if not a collector", async () => {
+        // open collector give away
+        await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
+
+        // try to purchase without purchasing before collector give away
+        await expect(
+          EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, 0)
+        ).to.be.revertedWith("Must be a collector")
+      })
+
+      it("should purchase for free for collectors", async () => {
+        // purchase an edition
+        await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
+
+        // open collector give away
+        await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
+
+        //purchase for zero weth as a collector during a collector giveway
+        expect(
+          await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, 0)
+        ).to.emit(EditionsAuction, "EditionPurchased")
+      })
+    })
   })
 
   describe("#purchase(uint256 auctionId, uint256 amount, uint256 seed)", () => {
@@ -614,6 +652,44 @@ describe("EditionsAuction", () => {
       expect(
         await seededEdition.balanceOf(await collector.getAddress())
       ).to.eq(1)
+    })
+
+    describe("during a collector give away:", () => {
+      beforeEach(async () => {
+        // approve EditionsAuction for minting
+        await seededEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+
+        // move to when auction is over
+        await mineToTimestamp(seededAuction.startTimestamp.add(seededAuction.duration));
+
+        // deposit 10 weth
+        await weth.connect(collector).deposit({ value: ethers.utils.parseEther("10.0") });
+        // approve auction to spend 10 WETH
+        await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("10.0"))
+      })
+
+      it("should revert if not a collector", async () => {
+        // open collector give away
+        await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
+
+        // try to purchase without purchasing before collector give away
+        await expect(
+          EditionsAuction.connect(collector)["purchase(uint256,uint256,uint256)"](0, 0, 1)
+        ).to.be.revertedWith("Must be a collector")
+      })
+
+      it("should purchase for free for collectors", async () => {
+        // purchase an edition
+        await EditionsAuction.connect(collector)["purchase(uint256,uint256,uint256)"](0, ethers.utils.parseEther("1.0"), 1)
+
+        // open collector give away
+        await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
+
+        //purchase for zero weth as a collector during a collector giveway
+        expect(
+          await EditionsAuction.connect(collector)["purchase(uint256,uint256,uint256)"](0, 0, 2)
+        ).to.emit(EditionsAuction, "EditionPurchased")
+      })
     })
   })
 
@@ -779,7 +855,7 @@ describe("EditionsAuction", () => {
     })
   })
 
-  describe.only("#setCollectorGiveAway", () => {
+  describe("#setCollectorGiveAway", () => {
     let auction: any
 
     beforeEach(async () => {
