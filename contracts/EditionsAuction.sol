@@ -20,7 +20,7 @@ import {Utils} from "./Utils.sol";
 /**
  * @title An open dutch auction house, for initial drops of limited edition nft contracts.
  */
-contract EditionsAuction is IEditionsAuction, AuctionUtils, SeededPurchaseHandler, StandardPurchaseHandler, ReentrancyGuard{
+contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, StandardPurchaseHandler, ReentrancyGuard{
   using SafeMath for uint256;
   using Counters for Counters.Counter;
 

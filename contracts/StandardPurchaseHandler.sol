@@ -2,9 +2,9 @@
 pragma solidity 0.8.6;
 import {IEditionSingleMintable} from "./editions-nft/IEditionSingleMintable.sol";
 import {IEditionsAuction, Edition, Implementation} from "./IEditionsAuction.sol";
-import {AuctionUtils} from "./Utils.sol";
+import {Utils} from "./Utils.sol";
 
-abstract contract StandardPurchaseHandler is IEditionsAuction, AuctionUtils {
+abstract contract StandardPurchaseHandler is IEditionsAuction, Utils {
   function _handleStandardPurchase(uint256 auctionId, Auction memory auction, uint256 value) internal returns (uint256){
     // check edtions contract is standard implementation
     require(

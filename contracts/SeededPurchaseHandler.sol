@@ -2,9 +2,9 @@
 pragma solidity 0.8.6;
 import {ISeededEditionSingleMintable, MintData} from "./editions-nft/ISeededEditionSingleMintable.sol";
 import {IEditionsAuction, Edition, Implementation} from "./IEditionsAuction.sol";
-import {AuctionUtils} from "./Utils.sol";
+import {Utils} from "./Utils.sol";
 
-abstract contract SeededPurchaseHandler is IEditionsAuction, AuctionUtils {
+abstract contract SeededPurchaseHandler is IEditionsAuction, Utils {
   function _handleSeededPurchase(uint256 auctionId, Auction memory auction, uint256 value, uint256 seed) internal returns (uint256){
     // check edtions contract is seeded implementation
     require(
