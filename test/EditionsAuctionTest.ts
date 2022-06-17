@@ -779,6 +779,84 @@ describe("EditionsAuction", () => {
     })
   })
 
+  describe.only("#setCollectorGiveAway", () => {
+    let auction: any
+
+    beforeEach(async () => {
+      await createAuction(creator)
+      auction = await EditionsAuction.auctions(0)
+    })
+
+    it("should revert if not creator", async () => {
+      await expect(
+        EditionsAuction.connect(collector).setCollectorGiveAway(0, true)
+      ).to.be.revertedWith("Must be creator")
+    })
+
+    it("should revert if auction is not over", async () => {
+      await expect(
+        EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
+      ).to.be.revertedWith("Auction is not over")
+    })
+
+    describe("", () => {
+      beforeEach(async () => {
+        // approve EditionsAuction for minting
+        await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+
+        // deposit weth
+        await weth.connect(collector).deposit({ value: ethers.utils.parseEther("10.0") })
+
+        // approve auction to spend 10 WETH
+        await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("10.0"))
+
+        // move to when auction ends
+        await mineToTimestamp(auction.startTimestamp.add(auction.duration))
+
+        // purchase an edition
+        await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
+      })
+
+      it("should open a collector give away", async () => {
+        expect(
+          await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
+        ).to.emit(
+          EditionsAuction, "CollectorGiveAwayUpdated"
+        ).withArgs(
+          0,
+          auction.edition.id,
+          true
+        )
+
+        // purchase an edition for zero weth
+        expect(
+          await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, 0)
+        ).to.emit(EditionsAuction, "EditionPurchased")
+      })
+
+      it("should close a collector give away", async () => {
+        // open collector give away
+        await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
+
+        // close collector give away
+        expect(
+          await EditionsAuction.connect(creator).setCollectorGiveAway(0, false)
+        ).to.emit(
+          EditionsAuction, "CollectorGiveAwayUpdated"
+        ).withArgs(
+          0,
+          auction.edition.id,
+          false
+        )
+
+        // purchase an edition for zero weth
+        await expect(
+          EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, 0)
+        ).to.be.reverted
+      })
+    })
+  })
+
   describe("Internals", () => {
     let ExposedInternals: ExposedInternals
     beforeEach(async () => {
