@@ -213,6 +213,37 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
   }
 
   /**
+   * @notice allows the creator to trigger a collector only give away once an auction is over
+   * @dev sets auction collectorGiveAway to giveAway and emits an CollectorGiveAwayUpdated event
+   * @param auctionId the id of the auction
+   * @param giveAway the creators giveAway decision
+   */
+  function setCollectorGiveAway(
+    uint256 auctionId,
+    bool giveAway
+  ) external
+    override
+    auctionExists(auctionId)
+  {
+    require(
+      msg.sender == auctions[auctionId].creator,
+      "Must be creator"
+    );
+    require(
+      block.timestamp > auctions[auctionId].startTimestamp.add(auctions[auctionId].duration),
+      "Auction is not over"
+    );
+
+    auctions[auctionId].collectorGiveAway = giveAway;
+
+    emit CollectorGiveAwayUpdated(
+      auctionId,
+      auctions[auctionId].edition.id,
+      giveAway
+    );
+  }
+
+  /**
    * @notice gets the current sale price of an auction
    * @dev calculates the price based on the block.timestamp
    * @param auctionId the id of the auction
