@@ -11,11 +11,6 @@ struct Edition {
   Implementation implementation;
 }
 
-struct Step {
-  uint256 price;
-  uint256 time;
-}
-
 interface IEditionsAuction {
   struct Auction {
     Edition edition;
@@ -25,11 +20,11 @@ interface IEditionsAuction {
     uint256 endPrice;
     uint8 numberOfPriceDrops;
     address creator;
-    Step step;
     bool approved;
     address curator;
     uint256 curatorRoyaltyBPS;
     address auctionCurrency;
+    bool collectorGiveAway;
   }
 
   event EditionPurchased(
@@ -69,6 +64,22 @@ interface IEditionsAuction {
     bool approved
   );
 
+  event CollectorGiveAwayUpdated(
+    uint256 auctionId,
+    address editionContract,
+    bool giveAway
+  );
+
+  event AuctionCanceled(
+    uint256 auctionId,
+    address editionContract
+  );
+
+  event AuctionEnded(
+    uint256 auctionId,
+    address editionContract
+  );
+
   function createAuction(
     Edition memory edition,
     uint256 startTimestamp,
@@ -83,10 +94,16 @@ interface IEditionsAuction {
 
   function setAuctionApproval(uint auctionId, bool approved) external;
 
+  function setCollectorGiveAway(uint256 auctionId, bool giveAway) external;
+
   function getSalePrice(uint256 auctionId) external returns (uint256);
 
   function purchase(uint256 auctionId, uint256 amount) external payable returns (uint256);
   function purchase(uint256 auctionId, uint256 amount, uint256 seed) external payable returns (uint256);
 
   function numberCanMint(uint256 auctionId) external view returns (uint256);
+
+  function cancelAuction(uint256 auctionId) external;
+
+  function endAuction(uint256 auctionId) external;
 }
