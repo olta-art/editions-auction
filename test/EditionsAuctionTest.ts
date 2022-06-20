@@ -591,8 +591,8 @@ describe("EditionsAuction", () => {
         await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
 
         //purchase for zero weth as a collector during a collector giveway
-        expect(
-          await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, 0)
+        await expect(
+          EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, 0)
         ).to.emit(EditionsAuction, "EditionPurchased")
       })
     })
@@ -686,9 +686,9 @@ describe("EditionsAuction", () => {
         await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
 
         //purchase for zero weth as a collector during a collector giveway
-        expect(
-          await EditionsAuction.connect(collector)["purchase(uint256,uint256,uint256)"](0, 0, 2)
-        ).to.emit(EditionsAuction, "EditionPurchased")
+        await expect(
+          EditionsAuction.connect(collector)["purchase(uint256,uint256,uint256)"](0, 0, 2)
+        ).to.emit(EditionsAuction, "SeededEditionPurchased")
       })
     })
   })
