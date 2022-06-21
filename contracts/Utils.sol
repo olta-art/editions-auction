@@ -7,6 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 
 interface ERC721 {
   function balanceOf(address owner) external view returns (uint256);
+  function royaltyInfo(uint256, uint256 _salePrice) external view returns (address receiver, uint256 royaltyAmount);
 }
 
 abstract contract Utils is IEditionsAuction {
@@ -20,14 +21,6 @@ abstract contract Utils is IEditionsAuction {
   function _handlePurchasePayment(Auction memory auction, uint256 salePrice) internal{
     IERC20 token = IERC20(auction.auctionCurrency);
 
-    // NOTE: msg.sender would need to approve this contract with currency before making a purchase
-    // If intergrating with zora v3 the market would hold the funds and handle royalties differently.
-    // through royalties finders, and protocal fees
-    // TODO: respect royalties on NFT contract (v3 intergration could solve this)
-
-    // NOTE: modified from v3 for now. A full intergration would be better if we go that route
-    // https://github.com/ourzora/v3/blob/main/contracts/common/IncomingTransferSupport/V1/IncomingTransferSupportV1.sol
-
     // We must check the balance that was actually transferred to this contract,
     // as some tokens impose a transfer fee and would not actually transfer the
     // full amount to the market, resulting in potentally locked funds
@@ -36,10 +29,15 @@ abstract contract Utils is IEditionsAuction {
     uint256 afterBalance = token.balanceOf(address(this));
     require(beforeBalance + salePrice == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
 
+    // get receiver for funds from editions contract
+    // tokenId can be set to 0 as all have the same royalties
+    // returned royalty amount is ignored as it's the initial sale
+    (address receiver, ) = ERC721(auction.edition.id).royaltyInfo(0, salePrice);
+
     // if no curator, add payment to creator
     if(auction.curator == address(0)){
       token.safeTransfer(
-        auction.creator,
+        receiver,
         salePrice
       );
     }
@@ -54,7 +52,7 @@ abstract contract Utils is IEditionsAuction {
 
       uint256 creatorFee = salePrice.sub(curatorFee);
       token.safeTransfer(
-        auction.creator,
+        receiver,
         creatorFee
       );
     }

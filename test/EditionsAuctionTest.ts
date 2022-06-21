@@ -450,6 +450,37 @@ describe("EditionsAuction", () => {
       ).to.eq(1)
     })
 
+    it("should purchase for zero", async () => {
+      // create another single edition
+      const anotherSingleEdition = await createEdition()
+      // create another auction with end price set to zero
+      await createAuction(creator, {
+        edition: {
+            id: anotherSingleEdition.address,
+            implementation: Implementation.editions
+        },
+        endPrice: 0
+      })
+      auction = await EditionsAuction.auctions(1)
+
+      // approve EditionsAuction for minting
+      await anotherSingleEdition.connect(creator)
+        .setApprovedMinter(EditionsAuction.address, true)
+
+      // move to when auction is over
+      await mineToTimestamp(auction.startTimestamp.add(auction.duration))
+
+      // purchase for zero
+      expect(
+        await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](1, 0)
+      ).to.emit(EditionsAuction, "EditionPurchased")
+
+      // check token balance
+      expect(
+        await anotherSingleEdition.balanceOf(await collector.getAddress())
+      ).to.eq(1)
+    })
+
     it("should split royalties", async () => {
 
       const anotherSingleEdition = await createEdition(creator)
@@ -591,8 +622,8 @@ describe("EditionsAuction", () => {
         await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
 
         //purchase for zero weth as a collector during a collector giveway
-        expect(
-          await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, 0)
+        await expect(
+          EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, 0)
         ).to.emit(EditionsAuction, "EditionPurchased")
       })
     })
@@ -686,9 +717,9 @@ describe("EditionsAuction", () => {
         await EditionsAuction.connect(creator).setCollectorGiveAway(0, true)
 
         //purchase for zero weth as a collector during a collector giveway
-        expect(
-          await EditionsAuction.connect(collector)["purchase(uint256,uint256,uint256)"](0, 0, 2)
-        ).to.emit(EditionsAuction, "EditionPurchased")
+        await expect(
+          EditionsAuction.connect(collector)["purchase(uint256,uint256,uint256)"](0, 0, 2)
+        ).to.emit(EditionsAuction, "SeededEditionPurchased")
       })
     })
   })
