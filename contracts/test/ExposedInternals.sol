@@ -2,8 +2,7 @@
 pragma solidity 0.8.6;
 import {DutchAuctionDrop} from "../DutchAuctionDrop.sol";
 
-
-// Exposes internal EditionAuction functions for unit tests
+// Exposes internal AutchAuctionDrop functions for unit tests
 
 contract ExposedInternals is DutchAuctionDrop{
     function floor(uint256 value, uint256 unit) public pure returns (uint256) {
