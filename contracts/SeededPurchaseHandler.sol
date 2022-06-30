@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
-import {ISeededEditionSingleMintable, MintData} from "./editions-nft/ISeededEditionSingleMintable.sol";
-import {IEditionsAuction, Edition, Implementation} from "./IEditionsAuction.sol";
+import {ISeededProject, MintData} from "./projects/ISeeded.sol";
+import {IEditionsAuction, Project, Implementation} from "./IEditionsAuction.sol";
 import {Utils} from "./Utils.sol";
 
 abstract contract SeededPurchaseHandler is IEditionsAuction, Utils {
   function _handleSeededPurchase(uint256 auctionId, Auction memory auction, uint256 value, uint256 seed) internal returns (uint256){
-    // check edtions contract is seeded implementation
+    // check project is seeded implementation
     require(
-      auction.edition.implementation == Implementation.seededEdition,
+      auction.project.implementation == Implementation.seeded,
       "Must be seeded edition contract"
     );
 
@@ -32,7 +32,7 @@ abstract contract SeededPurchaseHandler is IEditionsAuction, Utils {
 
     emit SeededEditionPurchased(
       auctionId,
-      auction.edition.id,
+      auction.project.id,
       atEditionId - 1,
       seed,
       salePrice,
@@ -44,7 +44,7 @@ abstract contract SeededPurchaseHandler is IEditionsAuction, Utils {
 
   function _handleSeededCollectorGiveAway(uint256 auctionId, Auction memory auction, uint256 seed) internal returns (uint256){
     require(
-      _isCollector(auction.edition.id, msg.sender),
+      _isCollector(auction.project.id, msg.sender),
       "Must be a collector"
     );
 
@@ -52,7 +52,7 @@ abstract contract SeededPurchaseHandler is IEditionsAuction, Utils {
 
     emit SeededEditionPurchased(
       auctionId,
-      auction.edition.id,
+      auction.project.id,
       atEditionId - 1,
       seed,
       0,
@@ -67,6 +67,6 @@ abstract contract SeededPurchaseHandler is IEditionsAuction, Utils {
     toMint[0] = MintData(msg.sender, seed);
 
     // mint new nft
-    return ISeededEditionSingleMintable(auction.edition.id).mintEditions(toMint);
+    return ISeededProject(auction.project.id).mintEditions(toMint);
   }
 }

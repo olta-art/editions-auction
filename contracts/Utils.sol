@@ -29,10 +29,10 @@ abstract contract Utils is IEditionsAuction {
     uint256 afterBalance = token.balanceOf(address(this));
     require(beforeBalance + salePrice == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
 
-    // get receiver for funds from editions contract
+    // get receiver for funds from project
     // tokenId can be set to 0 as all have the same royalties
     // returned royalty amount is ignored as it's the initial sale
-    (address receiver, ) = ERC721(auction.edition.id).royaltyInfo(0, salePrice);
+    (address receiver, ) = ERC721(auction.project.id).royaltyInfo(0, salePrice);
 
     // if no curator, add payment to creator
     if(auction.curator == address(0)){

@@ -4,11 +4,11 @@ import { ethers, deployments } from "hardhat";
 
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
-  SingleEditionMintableCreator,
-  SingleEditionMintable,
+  ProjectCreator,
+  StandardProject,
+  SeededProject,
   EditionsAuction,
   WETH,
-  SeededSingleEditionMintable,
   ExposedInternals
 } from "../typechain";
 
@@ -18,21 +18,21 @@ import {
   deployWETH,
   defaultVersion,
   Implementation,
-  editionData
+  projectData
 } from "./utils"
 
 describe("EditionsAuction", () => {
   let curator: SignerWithAddress;
   let creator: SignerWithAddress;
   let collector: SignerWithAddress;
-  let SingleEditonCreator: SingleEditionMintableCreator;
+  let ProjectCreator: ProjectCreator;
   let EditionsAuction: EditionsAuction;
-  let SingleEdition: SingleEditionMintable;
+  let StandardProject: StandardProject;
   let weth: WETH;
 
-  const createEdition = async (signer: SignerWithAddress = creator) => {
-    const transaction = await SingleEditonCreator.connect(signer).createEdition(
-      editionData(
+  const createProject = async (signer: SignerWithAddress = creator) => {
+    const transaction = await ProjectCreator.connect(signer).createProject(
+      projectData(
         "Testing Token",
         "TEST",
         "This is a testing token for all",
@@ -40,21 +40,22 @@ describe("EditionsAuction", () => {
         10,
         10
       ),
-      Implementation.editions
+      Implementation.standard
     );
-    const [id] = await getEventArguments(transaction, "CreatedEdition")
-    const editionResult = await SingleEditonCreator.getEditionAtId(id, Implementation.editions)
+    const [id] = await getEventArguments(transaction, "CreatedProject")
 
-    const { abi } = await deployments.get("SingleEditionMintable")
+    const project = await ProjectCreator.getProjectAtId(id, Implementation.standard)
+
+    const { abi } = await deployments.get("StandardProject")
     return (await ethers.getContractAt(
       abi,
-      editionResult
-    )) as SingleEditionMintable
+      project
+    )) as StandardProject
   }
 
-  const createSeededEdition = async (signer: SignerWithAddress = creator) => {
-    const transaction = await SingleEditonCreator.connect(signer).createEdition(
-      editionData(
+  const createSeededProject = async (signer: SignerWithAddress = creator) => {
+    const transaction = await ProjectCreator.connect(signer).createProject(
+      projectData(
         "Testing Token",
         "TEST",
         "This is a testing token for all",
@@ -62,23 +63,23 @@ describe("EditionsAuction", () => {
         10,
         10
       ),
-      Implementation.seededEditions
+      Implementation.seeded
     )
-    const [id] = await getEventArguments(transaction, "CreatedEdition")
-    const editionResult = await SingleEditonCreator.getEditionAtId(id, Implementation.seededEditions)
+    const [id] = await getEventArguments(transaction, "CreatedProject")
+    const project = await ProjectCreator.getProjectAtId(id, Implementation.seeded)
 
-    const { abi } = await deployments.get("SeededSingleEditionMintable")
+    const { abi } = await deployments.get("SeededProject")
     return (await ethers.getContractAt(
       abi,
-      editionResult
-    )) as SeededSingleEditionMintable
+      project
+    )) as SeededProject
   }
 
   const createAuction = async (signer: SignerWithAddress = creator, options = {}) => {
     const defaults = {
-      edition: {
-        id: SingleEdition.address,
-        implementation: Implementation.editions
+      project: {
+        id: StandardProject.address,
+        implementation: Implementation.standard
       },
       startTime: Math.floor((Date.now() / 1000)) + 60 * 2, // now + 2 mins
       duration: 60 * 8, // 8 minutes
@@ -93,7 +94,7 @@ describe("EditionsAuction", () => {
     const params = {...defaults, ...options}
 
     return EditionsAuction.connect(signer).createAuction(
-      params.edition,
+      params.project,
       params.startTime,
       params.duration,
       params.startPrice,
@@ -106,16 +107,16 @@ describe("EditionsAuction", () => {
   }
 
   beforeEach(async () => {
-    const { SingleEditionMintableCreator, EditionsAuction: EditionsAuctionContract } = await deployments.fixture([
-      "SingleEditionMintableCreator",
+    const { ProjectCreator: ProjectCreatorContract, EditionsAuction: EditionsAuctionContract } = await deployments.fixture([
+      "ProjectCreator",
       "EditionsAuction"
     ]);
 
     // const SingleEditonCreatorArtifact = await deployments.getArtifact("SingleEditionMintableCreator")
-    SingleEditonCreator = (await ethers.getContractAt(
-      SingleEditionMintableCreator.abi,
-      SingleEditionMintableCreator.address
-    )) as SingleEditionMintableCreator;
+    ProjectCreator = (await ethers.getContractAt(
+      ProjectCreatorContract.abi,
+      ProjectCreatorContract.address
+    )) as ProjectCreator;
 
     EditionsAuction = (await ethers.getContractAt(
       "EditionsAuction",
@@ -127,7 +128,7 @@ describe("EditionsAuction", () => {
     creator = _creator;
     collector = _collector;
 
-    SingleEdition = await createEdition()
+    StandardProject = await createProject()
     weth = await deployWETH()
   })
 
@@ -139,7 +140,7 @@ describe("EditionsAuction", () => {
       ]);
       await expect(
         createAuction(creator, {
-          edition: {id: BadERC721.address, implementation: Implementation.editions}
+          project: {id: BadERC721.address, implementation: Implementation.standard}
         })
       ).to.be.revertedWith("Doesn't support NFT interface")
     })
@@ -233,7 +234,7 @@ describe("EditionsAuction", () => {
 
       const auction = await EditionsAuction.auctions(0)
 
-      expect(auction.edition.id).to.eq(SingleEdition.address)
+      expect(auction.project.id).to.eq(StandardProject.address)
       expect(auction.startTimestamp).to.eq(startTime)
       expect(auction.duration).to.eq(8 * 60)
       expect(auction.startPrice).to.eq(ethers.utils.parseEther("1.0"))
@@ -277,10 +278,10 @@ describe("EditionsAuction", () => {
 
     it("should quantize price during auction", async () => {
 
-      const anotherSingleEdition = await createEdition(creator)
+      const anotherStandardProject = await createProject(creator)
 
       // approve EditionsAuction for minting
-      await anotherSingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+      await anotherStandardProject.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
       const numberOfPriceDrops = 3
       const startPrice = ethers.utils.parseEther("10.23456")
@@ -290,9 +291,9 @@ describe("EditionsAuction", () => {
 
       // create auction with curator
       await createAuction(creator, {
-        edition: {
-          id: anotherSingleEdition.address,
-          implementation: Implementation.editions
+        project: {
+          id: anotherStandardProject.address,
+          implementation: Implementation.standard
         },
         duration: min * 6, // 6 minutes
         startPrice,
@@ -364,7 +365,7 @@ describe("EditionsAuction", () => {
       const [ _, __, ___, collectorB] = await ethers.getSigners();
 
       // approve EditionsAuction for minting
-      await SingleEdition.connect(creator)
+      await StandardProject.connect(creator)
         .setApprovedMinter(EditionsAuction.address, true)
 
       // move to when auction starts
@@ -380,7 +381,7 @@ describe("EditionsAuction", () => {
       const [ _, __, ___, collectorB] = await ethers.getSigners();
 
       // approve EditionsAuction for minting
-      await SingleEdition.connect(creator)
+      await StandardProject.connect(creator)
         .setApprovedMinter(EditionsAuction.address, true)
 
       // move to when auction starts
@@ -405,13 +406,13 @@ describe("EditionsAuction", () => {
 
     it("should revert if editions contract is seeded implenetation", async () => {
       // create seeded edition and auction
-      const seededEdition = await createSeededEdition()
+      const seededEdition = await createSeededProject()
 
       // create seeded auction, id = 1
       await createAuction(creator, {
-        edition: {
+        project: {
           id: seededEdition.address,
-          implementation: Implementation.seededEditions
+          implementation: Implementation.seeded
         }
       })
       const seededAuction = await EditionsAuction.auctions(1)
@@ -430,7 +431,7 @@ describe("EditionsAuction", () => {
 
     it("should purchase", async () => {
       // approve EditionsAuction for minting
-      await SingleEdition.connect(creator)
+      await StandardProject.connect(creator)
         .setApprovedMinter(EditionsAuction.address, true)
 
       // move to when auction starts
@@ -446,25 +447,25 @@ describe("EditionsAuction", () => {
 
       // check token balance
       expect(
-        await SingleEdition.balanceOf(await collector.getAddress())
+        await StandardProject.balanceOf(await collector.getAddress())
       ).to.eq(1)
     })
 
     it("should purchase for zero", async () => {
-      // create another single edition
-      const anotherSingleEdition = await createEdition()
+      // create another project
+      const anotherStandardProject = await createProject()
       // create another auction with end price set to zero
       await createAuction(creator, {
-        edition: {
-            id: anotherSingleEdition.address,
-            implementation: Implementation.editions
+        project: {
+            id: anotherStandardProject.address,
+            implementation: Implementation.standard
         },
         endPrice: 0
       })
       auction = await EditionsAuction.auctions(1)
 
       // approve EditionsAuction for minting
-      await anotherSingleEdition.connect(creator)
+      await anotherStandardProject.connect(creator)
         .setApprovedMinter(EditionsAuction.address, true)
 
       // move to when auction is over
@@ -477,22 +478,22 @@ describe("EditionsAuction", () => {
 
       // check token balance
       expect(
-        await anotherSingleEdition.balanceOf(await collector.getAddress())
+        await anotherStandardProject.balanceOf(await collector.getAddress())
       ).to.eq(1)
     })
 
     it("should split royalties", async () => {
 
-      const anotherSingleEdition = await createEdition(creator)
+      const anotherStandardProject = await createProject(creator)
 
       // approve EditionsAuction for minting
-      await anotherSingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+      await anotherStandardProject.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
       // create auction with curator
       await createAuction(creator, {
-        edition: {
-          id: anotherSingleEdition.address,
-          implementation: Implementation.editions
+        project: {
+          id: anotherStandardProject.address,
+          implementation: Implementation.standard
         },
         curator: await curator.getAddress(),
         curatorRoyaltyBPS: 1000
@@ -527,7 +528,7 @@ describe("EditionsAuction", () => {
 
     it("should purchase at price based on block timestamp", async () => {
       // approve EditionsAuction for minting
-      await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+      await StandardProject.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
       await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
 
@@ -554,13 +555,13 @@ describe("EditionsAuction", () => {
 
       // check token balance
       expect(
-        await SingleEdition.balanceOf(await collector.getAddress())
+        await StandardProject.balanceOf(await collector.getAddress())
       ).to.eq(1)
     })
 
     it("should revert if sold out", async () => {
       // approve EditionsAuction for minting
-      await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+      await StandardProject.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
       // move to when auction starts
       await mineToTimestamp(auction.startTimestamp);
@@ -593,7 +594,7 @@ describe("EditionsAuction", () => {
     describe("during a collector give away:", () => {
       beforeEach(async () => {
         // approve EditionsAuction for minting
-        await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+        await StandardProject.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
         // move to when auction is over
         await mineToTimestamp(auction.startTimestamp.add(auction.duration));
@@ -630,23 +631,23 @@ describe("EditionsAuction", () => {
   })
 
   describe("#purchase(uint256 auctionId, uint256 amount, uint256 seed)", () => {
-    let seededEdition: SeededSingleEditionMintable
+    let SeededProject: SeededProject
     let seededAuction: any
-    let notSeededEdition: SingleEditionMintable
+    let notSeededProject: StandardProject
     let notSeededAuction: any
     beforeEach( async () => {
       // create seeded edition and auction
-      seededEdition = await createSeededEdition()
+      SeededProject = await createSeededProject()
       await createAuction(creator, {
-        edition: {
-          id: seededEdition.address,
-          implementation: Implementation.seededEditions
+        project: {
+          id: SeededProject.address,
+          implementation: Implementation.seeded
         }
       })
       seededAuction = await EditionsAuction.auctions(0)
 
       // create not seeded edtion and auction
-      notSeededEdition = await createEdition()
+      notSeededProject = await createProject()
       await createAuction()
       notSeededAuction = await EditionsAuction.auctions(1)
 
@@ -657,7 +658,7 @@ describe("EditionsAuction", () => {
       await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
 
       // approve EditionsAuction for minting
-      await seededEdition.connect(creator)
+      await SeededProject.connect(creator)
         .setApprovedMinter(EditionsAuction.address, true)
 
       // move to when auction starts
@@ -681,14 +682,14 @@ describe("EditionsAuction", () => {
 
       // check token balance
       expect(
-        await seededEdition.balanceOf(await collector.getAddress())
+        await SeededProject.balanceOf(await collector.getAddress())
       ).to.eq(1)
     })
 
     describe("during a collector give away:", () => {
       beforeEach(async () => {
         // approve EditionsAuction for minting
-        await seededEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+        await SeededProject.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
         // move to when auction is over
         await mineToTimestamp(seededAuction.startTimestamp.add(seededAuction.duration));
@@ -824,7 +825,7 @@ describe("EditionsAuction", () => {
         EditionsAuction, "AuctionCanceled"
       ).withArgs(
         0,
-        SingleEdition.address
+        StandardProject.address
       )
     })
   })
@@ -847,7 +848,7 @@ describe("EditionsAuction", () => {
       const auction = await EditionsAuction.auctions(0)
 
       // approve EditionsAuction for minting
-      await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+      await StandardProject.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
       // move to when auction starts
       await mineToTimestamp(auction.startTimestamp);
@@ -881,7 +882,7 @@ describe("EditionsAuction", () => {
         EditionsAuction, "AuctionEnded"
       ).withArgs(
         0,
-        SingleEdition.address
+        StandardProject.address
       )
     })
   })
@@ -909,7 +910,7 @@ describe("EditionsAuction", () => {
     describe("", () => {
       beforeEach(async () => {
         // approve EditionsAuction for minting
-        await SingleEdition.connect(creator).setApprovedMinter(EditionsAuction.address, true)
+        await StandardProject.connect(creator).setApprovedMinter(EditionsAuction.address, true)
 
         // deposit weth
         await weth.connect(collector).deposit({ value: ethers.utils.parseEther("10.0") })
@@ -931,7 +932,7 @@ describe("EditionsAuction", () => {
           EditionsAuction, "CollectorGiveAwayUpdated"
         ).withArgs(
           0,
-          auction.edition.id,
+          auction.project.id,
           true
         )
 
@@ -952,7 +953,7 @@ describe("EditionsAuction", () => {
           EditionsAuction, "CollectorGiveAwayUpdated"
         ).withArgs(
           0,
-          auction.edition.id,
+          auction.project.id,
           false
         )
 

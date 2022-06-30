@@ -11,14 +11,14 @@ import {IERC165} from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 
-import {IEditionSingleMintable} from "./editions-nft/IEditionSingleMintable.sol";
-import {IEditionsAuction, Edition, Implementation} from "./IEditionsAuction.sol";
+import {IStandardProject} from "./projects/IStandard.sol";
+import {IEditionsAuction, Project, Implementation} from "./IEditionsAuction.sol";
 import {SeededPurchaseHandler} from "./SeededPurchaseHandler.sol";
 import {StandardPurchaseHandler} from "./StandardPurchaseHandler.sol";
 import {Utils} from "./Utils.sol";
 
 /**
- * @title An open dutch auction house, for initial drops of limited edition nft contracts.
+ * @title A dutch auction house, for initial drops of projects
  */
 contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, StandardPurchaseHandler, ReentrancyGuard{
   using SafeMath for uint256;
@@ -28,9 +28,9 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
   uint8 minStepTime;
 
   bytes4 constant ERC721_interfaceId = 0x80ac58cd; // ERC-721 interface
-  bytes4[2] editionsImplentaion_interfaceIds;
+  bytes4[2] projectImplentaion_interfaceIds;
 
-  // A mapping of edition contract addresses to bool, declaring if an auction is active
+  // A mapping of project contract addresses to bool, declaring if an auction is active
   mapping (address => bool) private hasActiveAuction;
 
   // A mapping of all the auctions currently running
@@ -58,8 +58,8 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
    */
   constructor() {
     minStepTime = 2 * 60; // 2 minutes
-    editionsImplentaion_interfaceIds[uint8(Implementation.edition)] = 0x2fc51e5a;
-    editionsImplentaion_interfaceIds[uint8(Implementation.seededEdition)] = 0x26057e5e;
+    projectImplentaion_interfaceIds[uint8(Implementation.standard)] = 0x2fc51e5a;
+    projectImplentaion_interfaceIds[uint8(Implementation.seeded)] = 0x26057e5e;
   }
 
   /**
@@ -67,7 +67,7 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
    * @dev Store the auction details in the auctions mapping and emit an AuctionCreated event.
    * If there is no curator, or if the curator is the auction creator,
    * automatically approve the auction and emit an AuctionApproved event.
-   * @param edition the contract address and implementation of which NFT's will be minted
+   * @param project the contract address and implementation of which NFT's will be minted
    * @param startTimestamp the time the auction will start
    * @param duration the duration the auction will run for
    * @param startPrice the price in eth the auction will start at
@@ -78,7 +78,7 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
    * @return auction id
    */
   function createAuction(
-    Edition memory edition,
+    Project memory project,
     uint256 startTimestamp,
     uint256 duration,
     uint256 startPrice,
@@ -89,24 +89,24 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
     address auctionCurrency
   ) external override nonReentrant returns (uint256) {
     require(
-      IERC165(edition.id).supportsInterface(ERC721_interfaceId),
+      IERC165(project.id).supportsInterface(ERC721_interfaceId),
       "Doesn't support NFT interface"
     );
 
     require(
-      IERC165(edition.id).supportsInterface(
-        editionsImplentaion_interfaceIds[uint8(edition.implementation)]
+      IERC165(project.id).supportsInterface(
+        projectImplentaion_interfaceIds[uint8(project.implementation)]
       ),
       "Doesn't support chosen Editions interface"
     );
 
-    // TODO: require(IEditionSingleMintable(editionContract).numberCanMint() != type(uint256).max, "Editions must be a limited number")
+    // TODO: require(IStandardProject(editionContract).numberCanMint() != type(uint256).max, "Editions must be a limited number")
     // TODO: require this contract is approved ??
     // TODO: require curator rolaty not too high
 
-    address creator = IEditionSingleMintable(edition.id).owner();
+    address creator = IStandardProject(project.id).owner();
     require(msg.sender == creator, "Caller must be creator of editions");
-    require(hasActiveAuction[edition.id] == false, "Auction already exists");
+    require(hasActiveAuction[project.id] == false, "Auction already exists");
     require(startPrice > endPrice, "Start price must be higher then end price");
 
     if(curator == address(0)){
@@ -118,7 +118,7 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
     uint256 auctionId = _auctionIdTracker.current();
 
     auctions[auctionId] = Auction({
-      edition: edition,
+      project: project,
       startTimestamp: startTimestamp,
       duration: duration,
       startPrice: startPrice,
@@ -132,15 +132,15 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
       collectorGiveAway: false
     });
 
-    // set edition to active auction
-    hasActiveAuction[edition.id] = true;
+    // set project to active auction
+    hasActiveAuction[project.id] = true;
 
     _auctionIdTracker.increment();
 
     emit AuctionCreated(
       auctionId,
       creator,
-      edition,
+      project,
       startTimestamp,
       duration,
       startPrice,
@@ -238,7 +238,7 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
 
     emit CollectorGiveAwayUpdated(
       auctionId,
-      auctions[auctionId].edition.id,
+      auctions[auctionId].project.id,
       giveAway
     );
   }
@@ -291,8 +291,8 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
       "Auction is not over"
     );
 
-    emit AuctionEnded(auctionId, auctions[auctionId].edition.id);
-    hasActiveAuction[auctions[auctionId].edition.id] = false;
+    emit AuctionEnded(auctionId, auctions[auctionId].project.id);
+    hasActiveAuction[auctions[auctionId].project.id] = false;
     delete auctions[auctionId];
   }
 
@@ -301,13 +301,13 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
    * @param auctionId the id of the auction
    */
   function _cancelAuction(uint256 auctionId) internal {
-    emit AuctionCanceled(auctionId, auctions[auctionId].edition.id);
-    hasActiveAuction[auctions[auctionId].edition.id] = false;
+    emit AuctionCanceled(auctionId, auctions[auctionId].project.id);
+    hasActiveAuction[auctions[auctionId].project.id] = false;
     delete auctions[auctionId];
   }
 
   function _numberCanMint(uint256 auctionId) internal view returns (uint256) {
-    return IEditionSingleMintable(auctions[auctionId].edition.id).numberCanMint();
+    return IStandardProject(auctions[auctionId].project.id).numberCanMint();
   }
 
   function _exists(uint256 auctionId) internal view returns(bool) {
@@ -316,6 +316,6 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
 
   function _approveAuction(uint256 auctionId, bool approved) internal {
     auctions[auctionId].approved = approved;
-    emit AuctionApprovalUpdated(auctionId, auctions[auctionId].edition.id, approved);
+    emit AuctionApprovalUpdated(auctionId, auctions[auctionId].project.id, approved);
   }
 }
