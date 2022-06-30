@@ -112,7 +112,6 @@ describe("DutchAuctionDrop", () => {
       "DutchAuctionDrop"
     ]);
 
-    // const SingleEditonCreatorArtifact = await deployments.getArtifact("SingleEditionMintableCreator")
     ProjectCreator = (await ethers.getContractAt(
       ProjectCreatorContract.abi,
       ProjectCreatorContract.address
@@ -134,7 +133,7 @@ describe("DutchAuctionDrop", () => {
 
   describe("#CreateAuction()", async () => {
 
-    it("reverts if editions contract doesnt support NFT interface", async () => {
+    it("reverts if project doesn't support NFT interface", async () => {
       const { BadERC721 } = await deployments.fixture([
         "BadERC721"
       ]);
@@ -254,13 +253,13 @@ describe("DutchAuctionDrop", () => {
       auction = await DutchAuctionDrop.auctions(0)
     })
 
-    it("should be startPirce before auction", async () => {
+    it("returns startPirce before auction", async () => {
       expect(
         await DutchAuctionDrop.getSalePrice(0)
       ).to.eq(auction.startPrice)
     })
 
-    it("should drop the price at set intervals during auction", async () => {
+    it("drops the price at set intervals during auction", async () => {
       const stepTime = ethers.BigNumber.from(60 * 2)
       const stepPrice = ethers.utils.parseEther("0.2")
       for(let i = 1; i <= auction.numberOfPriceDrops; i++){
@@ -276,7 +275,7 @@ describe("DutchAuctionDrop", () => {
       }
     })
 
-    it("should quantize price during auction", async () => {
+    it("returns quantized price during auction", async () => {
 
       const anotherStandardProject = await createProject(creator)
 
@@ -333,7 +332,7 @@ describe("DutchAuctionDrop", () => {
       )
     })
 
-    it("should be endPrice after auction", async () => {
+    it("returns endPrice after auction", async () => {
       const afterAuction = auction.startTimestamp.add(auction.duration)
       await mineToTimestamp(afterAuction.add(1))
 
@@ -354,13 +353,13 @@ describe("DutchAuctionDrop", () => {
       await weth.connect(collector).deposit({ value: ethers.utils.parseEther("1.0") });
     })
 
-    it("should revert if auction hasn't started yet", async () => {
+    it("reverts if auction hasn't started yet", async () => {
       await expect(
         DutchAuctionDrop["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       ).to.be.revertedWith("Auction has not started yet")
     })
 
-    it("should revert if not approved to spend ERC-20", async () => {
+    it("reverts if not approved to spend ERC-20", async () => {
 
       const [ _, __, ___, collectorB] = await ethers.getSigners();
 
@@ -376,7 +375,7 @@ describe("DutchAuctionDrop", () => {
       ).to.be.revertedWith("SafeERC20: low-level call failed")
     })
 
-    it("should revert if signer has insufficient balance", async () => {
+    it("reverts if signer has insufficient balance", async () => {
       // signer with 0 WETH
       const [ _, __, ___, collectorB] = await ethers.getSigners();
 
@@ -395,7 +394,7 @@ describe("DutchAuctionDrop", () => {
       ).to.be.revertedWith("SafeERC20: low-level call failed")
     })
 
-    it("should revert if the wrong price", async () => {
+    it("reverts if the wrong price", async () => {
       // move to when auction starts
       await mineToTimestamp(auction.startTimestamp)
 
@@ -404,7 +403,7 @@ describe("DutchAuctionDrop", () => {
       ).to.be.revertedWith("Must be more or equal to sale price")
     })
 
-    it("should revert if editions contract is seeded implenetation", async () => {
+    it("reverts if project is seeded implenetation", async () => {
       // create seeded edition and auction
       const seededEdition = await createSeededProject()
 
@@ -429,7 +428,7 @@ describe("DutchAuctionDrop", () => {
       ).to.be.revertedWith("Must be edition contract")
     })
 
-    it("should purchase", async () => {
+    it("purchases an edition", async () => {
       // approve DutchAuctionDrop for minting
       await StandardProject.connect(creator)
         .setApprovedMinter(DutchAuctionDrop.address, true)
@@ -451,7 +450,7 @@ describe("DutchAuctionDrop", () => {
       ).to.eq(1)
     })
 
-    it("should purchase for zero", async () => {
+    it("purchases an edition when prices is zero", async () => {
       // create another project
       const anotherStandardProject = await createProject()
       // create another auction with end price set to zero
@@ -482,7 +481,7 @@ describe("DutchAuctionDrop", () => {
       ).to.eq(1)
     })
 
-    it("should split royalties", async () => {
+    it("splits royalties", async () => {
 
       const anotherStandardProject = await createProject(creator)
 
@@ -526,7 +525,7 @@ describe("DutchAuctionDrop", () => {
       ).to.eq(ethers.utils.parseEther("0.9"));
     })
 
-    it("should purchase at price based on block timestamp", async () => {
+    it("purchases at price based on block timestamp", async () => {
       // approve DutchAuctionDrop for minting
       await StandardProject.connect(creator).setApprovedMinter(DutchAuctionDrop.address, true)
 
@@ -559,7 +558,7 @@ describe("DutchAuctionDrop", () => {
       ).to.eq(1)
     })
 
-    it("should revert if sold out", async () => {
+    it("reverts if sold out", async () => {
       // approve DutchAuctionDrop for minting
       await StandardProject.connect(creator).setApprovedMinter(DutchAuctionDrop.address, true)
 
@@ -605,7 +604,7 @@ describe("DutchAuctionDrop", () => {
         await weth.connect(collector).approve(DutchAuctionDrop.address, ethers.utils.parseEther("10.0"))
       })
 
-      it("should revert if not a collector", async () => {
+      it("reverts if not a collector", async () => {
         // open collector give away
         await DutchAuctionDrop.connect(creator).setCollectorGiveAway(0, true)
 
@@ -615,7 +614,7 @@ describe("DutchAuctionDrop", () => {
         ).to.be.revertedWith("Must be a collector")
       })
 
-      it("should purchase for free for collectors", async () => {
+      it("purchases for free for previous collectors", async () => {
         // purchase an edition
         await DutchAuctionDrop.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
 
@@ -665,7 +664,7 @@ describe("DutchAuctionDrop", () => {
       await mineToTimestamp(seededAuction.startTimestamp)
     })
 
-    it("should revert if editions is not seeded implementation", async () => {
+    it("reverts if project is not seeded implementation", async () => {
       const seed = 5
       await expect(
          DutchAuctionDrop.connect(collector)
@@ -673,7 +672,7 @@ describe("DutchAuctionDrop", () => {
       ).to.be.revertedWith("Must be seeded edition contract")
     })
 
-    it("should purchase", async () => {
+    it("purchases edition", async () => {
       const seed = 5
       expect(
         await DutchAuctionDrop.connect(collector)
@@ -700,7 +699,7 @@ describe("DutchAuctionDrop", () => {
         await weth.connect(collector).approve(DutchAuctionDrop.address, ethers.utils.parseEther("10.0"))
       })
 
-      it("should revert if not a collector", async () => {
+      it("reverts if not a collector", async () => {
         // open collector give away
         await DutchAuctionDrop.connect(creator).setCollectorGiveAway(0, true)
 
@@ -710,7 +709,7 @@ describe("DutchAuctionDrop", () => {
         ).to.be.revertedWith("Must be a collector")
       })
 
-      it("should purchase for free for collectors", async () => {
+      it("purchases for free for previous collectors", async () => {
         // purchase an edition
         await DutchAuctionDrop.connect(collector)["purchase(uint256,uint256,uint256)"](0, ethers.utils.parseEther("1.0"), 1)
 
@@ -726,7 +725,7 @@ describe("DutchAuctionDrop", () => {
   })
 
   describe("#NumberCanMint()", async () => {
-    it("should return number of editions left to mint", async () => {
+    it("returns number of editions left to mint", async () => {
       await createAuction()
 
       expect(
@@ -743,13 +742,13 @@ describe("DutchAuctionDrop", () => {
       })
     })
 
-    it("should revert when not curator", async () => {
+    it("reverts when not curator", async () => {
       await expect(
         DutchAuctionDrop.connect(collector).setAuctionApproval(0, true)
       ).to.be.revertedWith("must be curator")
     })
 
-    it("should approve", async () => {
+    it("approves auction", async () => {
       await expect(
         DutchAuctionDrop.connect(curator).setAuctionApproval(0, true)
       ).to.emit(DutchAuctionDrop, "AuctionApprovalUpdated")
@@ -761,14 +760,14 @@ describe("DutchAuctionDrop", () => {
   })
 
   describe("#cancelAuction", async () => {
-    it("should revert if not creator or curator", async () => {
+    it("reverts if not creator or curator", async () => {
       await createAuction(creator)
       await expect(
         DutchAuctionDrop.connect(collector).cancelAuction(0)
       ).to.be.revertedWith("Must be creator or curator")
     })
 
-    it("should revert if approved and auction started", async () => {
+    it("reverts if approved and auction started", async () => {
 
       await createAuction(creator)
       const auction = await DutchAuctionDrop.auctions(0)
@@ -780,7 +779,7 @@ describe("DutchAuctionDrop", () => {
       ).to.be.revertedWith("Auction has already started")
     })
 
-    it("should cancel auction before auction started", async () => {
+    it("cancels auction before it has started", async () => {
       // no curator
       await createAuction(creator)
       expect(
@@ -797,7 +796,7 @@ describe("DutchAuctionDrop", () => {
       ).to.emit(DutchAuctionDrop, "AuctionCanceled")
     })
 
-    it("should cancel if curator has not approved", async () => {
+    it("cancels if curator has not approved", async () => {
       // curator
       await createAuction(creator, {
         curator: await curator.getAddress(),
@@ -815,7 +814,7 @@ describe("DutchAuctionDrop", () => {
       ).to.emit(DutchAuctionDrop, "AuctionCanceled")
     })
 
-    it("should emit AuctionCanceled event", async () => {
+    it("emits AuctionCanceled event", async () => {
       await createAuction(creator)
       const auction = await DutchAuctionDrop.auctions(0)
 
@@ -831,19 +830,19 @@ describe("DutchAuctionDrop", () => {
   })
 
   describe("#endAuction", () => {
-    it("should revert if not creator or curator", async () => {
+    it("reverts if not creator or curator", async () => {
       await createAuction(creator)
       await expect(
         DutchAuctionDrop.connect(collector).endAuction(0)
       ).to.be.revertedWith("Must be creator or curator")
     })
-    it("should revert if auction is not over", async () => {
+    it("reverts if auction is not over", async () => {
       await createAuction(creator)
       await expect(
         DutchAuctionDrop.connect(creator).endAuction(0)
       ).to.be.revertedWith("Auction is not over")
     })
-    it("should end auction", async () => {
+    it("ends auction", async () => {
       await createAuction(creator)
       const auction = await DutchAuctionDrop.auctions(0)
 
@@ -895,19 +894,19 @@ describe("DutchAuctionDrop", () => {
       auction = await DutchAuctionDrop.auctions(0)
     })
 
-    it("should revert if not creator", async () => {
+    it("reverts if not creator", async () => {
       await expect(
         DutchAuctionDrop.connect(collector).setCollectorGiveAway(0, true)
       ).to.be.revertedWith("Must be creator")
     })
 
-    it("should revert if auction is not over", async () => {
+    it("reverts if auction is not over", async () => {
       await expect(
         DutchAuctionDrop.connect(creator).setCollectorGiveAway(0, true)
       ).to.be.revertedWith("Auction is not over")
     })
 
-    describe("", () => {
+    describe("at the end of an auction", () => {
       beforeEach(async () => {
         // approve DutchAuctionDrop for minting
         await StandardProject.connect(creator).setApprovedMinter(DutchAuctionDrop.address, true)
@@ -925,7 +924,7 @@ describe("DutchAuctionDrop", () => {
         await DutchAuctionDrop.connect(collector)["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
       })
 
-      it("should open a collector give away", async () => {
+      it("opens a collector give away", async () => {
         expect(
           await DutchAuctionDrop.connect(creator).setCollectorGiveAway(0, true)
         ).to.emit(
@@ -942,7 +941,7 @@ describe("DutchAuctionDrop", () => {
         ).to.emit(DutchAuctionDrop, "EditionPurchased")
       })
 
-      it("should close a collector give away", async () => {
+      it("closes a collector give away", async () => {
         // open collector give away
         await DutchAuctionDrop.connect(creator).setCollectorGiveAway(0, true)
 
