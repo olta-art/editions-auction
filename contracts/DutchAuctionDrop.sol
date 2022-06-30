@@ -111,7 +111,7 @@ contract DutchAuctionDrop is
     // TODO: require curator rolaty not too high
 
     address creator = IStandardProject(project.id).owner();
-    require(msg.sender == creator, "Caller must be creator of editions");
+    require(msg.sender == creator, "Caller must be creator of project");
     require(hasActiveAuction[project.id] == false, "Auction already exists");
     require(startPrice > endPrice, "Start price must be higher then end price");
 
