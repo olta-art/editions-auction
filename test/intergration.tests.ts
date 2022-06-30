@@ -237,7 +237,7 @@ describe("DutchAuctionDrop", () => {
         await DutchAuctionDrop.connect(curator).setAuctionApproval(0, true)
       }
     })
-    it("should mint tokens", async () => {
+    it("mints tokens", async () => {
       await runAuction(0)
 
       const collectorNFTBalance = await StandardProject.balanceOf(collectorAddress)
@@ -246,7 +246,7 @@ describe("DutchAuctionDrop", () => {
         collectorNFTBalance.eq(editionSize)
       ).to.eq(true)
     })
-    it("should pay creator", async () => {
+    it("pays creator", async () => {
 
       const collectorBalanceStart = await weth.balanceOf(collectorAddress)
       await runAuction(0)
@@ -272,7 +272,7 @@ describe("DutchAuctionDrop", () => {
       expect(contractBalance).to.eq(ethers.utils.parseEther("0.0"))
     })
 
-    it("should pay curator", async () => {
+    it("pays curator", async () => {
       const collectorBalanceStart = await weth.balanceOf(collectorAddress)
       await runAuction(0)
       const collectorBalanceEnd = await weth.balanceOf(collectorAddress)
@@ -290,7 +290,7 @@ describe("DutchAuctionDrop", () => {
       ).to.eq(true)
     })
 
-    it("should not lock any funds in contract", async () => {
+    it("does not lock any funds in contract", async () => {
       await runAuction(0)
 
       // zero balance locked in contract
@@ -319,7 +319,7 @@ describe("DutchAuctionDrop", () => {
         await DutchAuctionDrop.connect(curator).setAuctionApproval(0, true)
       }
     })
-    it("should mint tokens", async () => {
+    it("mints tokens", async () => {
       await runAuction(0)
 
       const collectorNFTBalance = await StandardProject.balanceOf(collectorAddress)
@@ -328,7 +328,7 @@ describe("DutchAuctionDrop", () => {
         collectorNFTBalance.eq(editionSize)
       ).to.eq(true)
     })
-    it("should pay creator", async () => {
+    it("pays creator", async () => {
 
       const collectorBalanceStart = await weth.balanceOf(collectorAddress)
       await runAuction(0)
@@ -343,7 +343,7 @@ describe("DutchAuctionDrop", () => {
       ).to.eq(true)
     })
 
-    it("should not lock any funds in contract", async () => {
+    it("does not lock any funds in contract", async () => {
       await runAuction(0)
 
       // zero balance locked in contract
@@ -363,7 +363,7 @@ describe("DutchAuctionDrop", () => {
       // goto start of auction
       await mineToTimestamp(auction.startTimestamp)
     })
-    it("should allow for mints in the same block", async () => {
+    it("allows for mints in the same block", async () => {
       const [ _, __, collectorA, collectorB, collectorC] = await ethers.getSigners();
 
       // deposit 10 weth
