@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
-import {IEditionSingleMintable} from "./editions-nft/IEditionSingleMintable.sol";
-import {IEditionsAuction, Edition, Implementation} from "./IEditionsAuction.sol";
+import {IStandardProject} from "./projects/IStandard.sol";
+import {IDutchAuctionDrop, Project, Implementation} from "./IDutchAuctionDrop.sol";
 import {Utils} from "./Utils.sol";
 
-abstract contract StandardPurchaseHandler is IEditionsAuction, Utils {
+abstract contract StandardPurchaseHandler is IDutchAuctionDrop, Utils {
   function _handleStandardPurchase(uint256 auctionId, Auction memory auction, uint256 value) internal returns (uint256){
     // check edtions contract is standard implementation
     require(
-      auction.edition.implementation == Implementation.edition,
+      auction.project.implementation == Implementation.standard,
       "Must be edition contract"
     );
 
@@ -28,7 +28,7 @@ abstract contract StandardPurchaseHandler is IEditionsAuction, Utils {
 
     emit EditionPurchased(
       auctionId,
-      auction.edition.id,
+      auction.project.id,
       atEditionId - 1,
       salePrice,
       msg.sender
@@ -39,7 +39,7 @@ abstract contract StandardPurchaseHandler is IEditionsAuction, Utils {
 
   function _handleStandardCollectorGiveAway(uint256 auctionId, Auction memory auction) internal returns (uint256){
     require(
-      _isCollector(auction.edition.id, msg.sender),
+      _isCollector(auction.project.id, msg.sender),
       "Must be a collector"
     );
 
@@ -47,7 +47,7 @@ abstract contract StandardPurchaseHandler is IEditionsAuction, Utils {
 
     emit EditionPurchased(
       auctionId,
-      auction.edition.id,
+      auction.project.id,
       atEditionId - 1,
       0,
       msg.sender
@@ -61,6 +61,6 @@ abstract contract StandardPurchaseHandler is IEditionsAuction, Utils {
     toMint[0] = msg.sender;
 
     // mint new nft
-    return IEditionSingleMintable(auction.edition.id).mintEditions(toMint);
+    return IStandardProject(auction.project.id).mintEditions(toMint);
   }
 }

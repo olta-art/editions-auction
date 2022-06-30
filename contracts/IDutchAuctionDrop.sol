@@ -2,18 +2,18 @@
 pragma solidity 0.8.6;
 
 enum Implementation {
-  edition,
-  seededEdition
+  standard,
+  seeded
 }
 
-struct Edition {
+struct Project {
   address id;
   Implementation implementation;
 }
 
-interface IEditionsAuction {
+interface IDutchAuctionDrop {
   struct Auction {
-    Edition edition;
+    Project project;
     uint256 startTimestamp;
     uint256 duration;
     uint256 startPrice;
@@ -29,16 +29,16 @@ interface IEditionsAuction {
 
   event EditionPurchased(
     uint256 auctionId,
-    address tokenContract,
-    uint256 tokenId,
+    address project,
+    uint256 editionId,
     uint256 price,
     address owner
   );
 
   event SeededEditionPurchased(
     uint256 auctionId,
-    address tokenContract,
-    uint256 tokenId,
+    address project,
+    uint256 editionId,
     uint256 seed,
     uint256 price,
     address owner
@@ -47,7 +47,7 @@ interface IEditionsAuction {
   event AuctionCreated(
     uint256 auctionId,
     address creator,
-    Edition edition,
+    Project project,
     uint256 startTimestamp,
     uint256 duration,
     uint256 startPrice,
@@ -60,28 +60,28 @@ interface IEditionsAuction {
 
   event AuctionApprovalUpdated(
     uint256 auctionId,
-    address editionContract,
+    address project,
     bool approved
   );
 
   event CollectorGiveAwayUpdated(
     uint256 auctionId,
-    address editionContract,
+    address project,
     bool giveAway
   );
 
   event AuctionCanceled(
     uint256 auctionId,
-    address editionContract
+    address project
   );
 
   event AuctionEnded(
     uint256 auctionId,
-    address editionContract
+    address project
   );
 
   function createAuction(
-    Edition memory edition,
+    Project memory project,
     uint256 startTimestamp,
     uint256 duration,
     uint256 startPrice,

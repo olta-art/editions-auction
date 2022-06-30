@@ -11,8 +11,8 @@ const getInterfaceIds = async () => {
   const helpers = await helpersFactory.deploy() as Helpers;
 
   // log the interface Id's
-  await helpers.getEditionsInterfaceId()
-  await helpers.getSeededEditionsInterfaceId()
+  await helpers.getStandardProjectInterfaceId()
+  await helpers.getSeededProjectInterfaceId()
 }
 
 getInterfaceIds()

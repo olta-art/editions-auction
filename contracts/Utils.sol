@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
-import {IEditionsAuction} from "./IEditionsAuction.sol";
+import {IDutchAuctionDrop} from "./IDutchAuctionDrop.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -10,7 +10,7 @@ interface ERC721 {
   function royaltyInfo(uint256, uint256 _salePrice) external view returns (address receiver, uint256 royaltyAmount);
 }
 
-abstract contract Utils is IEditionsAuction {
+abstract contract Utils is IDutchAuctionDrop {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 
@@ -29,10 +29,10 @@ abstract contract Utils is IEditionsAuction {
     uint256 afterBalance = token.balanceOf(address(this));
     require(beforeBalance + salePrice == afterBalance, "_handleIncomingTransfer token transfer call did not transfer expected amount");
 
-    // get receiver for funds from editions contract
+    // get receiver for funds from project
     // tokenId can be set to 0 as all have the same royalties
     // returned royalty amount is ignored as it's the initial sale
-    (address receiver, ) = ERC721(auction.edition.id).royaltyInfo(0, salePrice);
+    (address receiver, ) = ERC721(auction.project.id).royaltyInfo(0, salePrice);
 
     // if no curator, add payment to creator
     if(auction.curator == address(0)){
