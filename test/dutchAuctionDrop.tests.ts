@@ -149,7 +149,7 @@ describe("DutchAuctionDrop", () => {
       const other = (await ethers.getSigners())[5]
       await expect(
         createAuction(other)
-      ).to.be.revertedWith("Caller must be creator of editions")
+      ).to.be.revertedWith("Caller must be creator of project")
     })
 
     it("reverts if start price is lower than end price", async () => {
