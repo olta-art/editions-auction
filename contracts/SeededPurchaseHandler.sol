@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
 import {ISeededProject, MintData} from "./projects/ISeeded.sol";
-import {IEditionsAuction, Project, Implementation} from "./IEditionsAuction.sol";
+import {IDutchAuctionDrop, Project, Implementation} from "./IDutchAuctionDrop.sol";
 import {Utils} from "./Utils.sol";
 
-abstract contract SeededPurchaseHandler is IEditionsAuction, Utils {
+abstract contract SeededPurchaseHandler is IDutchAuctionDrop, Utils {
   function _handleSeededPurchase(uint256 auctionId, Auction memory auction, uint256 value, uint256 seed) internal returns (uint256){
     // check project is seeded implementation
     require(

@@ -12,7 +12,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/security/ReentrancyGuard.
 import {Counters} from "@openzeppelin/contracts/utils/Counters.sol";
 
 import {IStandardProject} from "./projects/IStandard.sol";
-import {IEditionsAuction, Project, Implementation} from "./IEditionsAuction.sol";
+import {IDutchAuctionDrop, Project, Implementation} from "./IDutchAuctionDrop.sol";
 import {SeededPurchaseHandler} from "./SeededPurchaseHandler.sol";
 import {StandardPurchaseHandler} from "./StandardPurchaseHandler.sol";
 import {Utils} from "./Utils.sol";
@@ -20,7 +20,13 @@ import {Utils} from "./Utils.sol";
 /**
  * @title A dutch auction house, for initial drops of projects
  */
-contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, StandardPurchaseHandler, ReentrancyGuard{
+contract DutchAuctionDrop is
+  IDutchAuctionDrop,
+  Utils,
+  SeededPurchaseHandler,
+  StandardPurchaseHandler,
+  ReentrancyGuard
+{
   using SafeMath for uint256;
   using Counters for Counters.Counter;
 
@@ -34,7 +40,7 @@ contract EditionsAuction is IEditionsAuction, Utils, SeededPurchaseHandler, Stan
   mapping (address => bool) private hasActiveAuction;
 
   // A mapping of all the auctions currently running
-  mapping (uint256 => IEditionsAuction.Auction) public auctions;
+  mapping (uint256 => IDutchAuctionDrop.Auction) public auctions;
 
   Counters.Counter private _auctionIdTracker;
 

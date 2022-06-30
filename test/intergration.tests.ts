@@ -6,7 +6,7 @@ import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import {
   ProjectCreator,
   StandardProject,
-  EditionsAuction,
+  DutchAuctionDrop,
   WETH
 } from "../typechain";
 
@@ -25,7 +25,7 @@ import {
 } from "./utils"
 
 
-describe("EditionsAuction", () => {
+describe("DutchAuctionDrop", () => {
   let curator: SignerWithAddress;
   let creator: SignerWithAddress;
   let collector: SignerWithAddress;
@@ -34,7 +34,7 @@ describe("EditionsAuction", () => {
   let collectorAddress: string;
 
   let ProjectCreator: ProjectCreator;
-  let EditionsAuction: EditionsAuction;
+  let DutchAuctionDrop: DutchAuctionDrop;
   let StandardProject: StandardProject;
   let weth: WETH;
 
@@ -79,7 +79,7 @@ describe("EditionsAuction", () => {
 
     const params = {...defaults, ...options}
 
-    return EditionsAuction.connect(signer).createAuction(
+    return DutchAuctionDrop.connect(signer).createAuction(
       params.project,
       params.startTime,
       params.duration,
@@ -129,9 +129,9 @@ describe("EditionsAuction", () => {
 
   const generatePurchases = async (auctionId: number) => {
     // get auction
-    const auction = await EditionsAuction.auctions(auctionId)
+    const auction = await DutchAuctionDrop.auctions(auctionId)
 
-    const numberCanMint = await EditionsAuction.numberCanMint(auctionId)
+    const numberCanMint = await DutchAuctionDrop.numberCanMint(auctionId)
     const maxTimeIncrease = auction.duration.div(numberCanMint).toNumber() * 3
 
     const purchaseEdition = async () => {
@@ -142,8 +142,8 @@ describe("EditionsAuction", () => {
       await mineToTimestamp(ethers.BigNumber.from(previousBlockTimestamp + timeIncrease))
 
       // make purchase
-      const salePrice = await EditionsAuction.getSalePrice(auctionId)
-      return await EditionsAuction.connect(collector)["purchase(uint256,uint256)"](auctionId, salePrice)
+      const salePrice = await DutchAuctionDrop.getSalePrice(auctionId)
+      return await DutchAuctionDrop.connect(collector)["purchase(uint256,uint256)"](auctionId, salePrice)
     }
 
     // generator function
@@ -161,7 +161,7 @@ describe("EditionsAuction", () => {
 
   const runAuction = async (auctionId: number) => {
     // get auction
-    const auction = await EditionsAuction.auctions(auctionId)
+    const auction = await DutchAuctionDrop.auctions(auctionId)
     // goto start of auction
     await mineToTimestamp(auction.startTimestamp)
 
@@ -170,23 +170,23 @@ describe("EditionsAuction", () => {
     let total = ethers.BigNumber.from(0)
     // purchase all editions
     for await ( const purchase of purchases() ){
-      expect(purchase).to.emit(EditionsAuction, "EditionPurchased")
+      expect(purchase).to.emit(DutchAuctionDrop, "EditionPurchased")
     }
 
     // purchase when no editons left
-    const salePrice = await EditionsAuction.getSalePrice(0)
+    const salePrice = await DutchAuctionDrop.getSalePrice(0)
     await expect(
-      EditionsAuction.connect(collector)["purchase(uint256,uint256)"](0, salePrice)
+      DutchAuctionDrop.connect(collector)["purchase(uint256,uint256)"](0, salePrice)
     ).to.be.revertedWith("Sold out")
 
     return total
   }
 
   beforeEach(async () => {
-    const { ProjectCreator: ProjectCreatorContract, EditionsAuction: EditionsAuctionContract } = await deployments.fixture([
+    const { ProjectCreator: ProjectCreatorContract, DutchAuctionDrop: DutchAuctionDropContract } = await deployments.fixture([
       "ProjectCreator",
       "StandardProject",
-      "EditionsAuction"
+      "DutchAuctionDrop"
     ]);
 
     ProjectCreator = (await ethers.getContractAt(
@@ -194,10 +194,10 @@ describe("EditionsAuction", () => {
       ProjectCreatorContract.address
     )) as ProjectCreator;
 
-    EditionsAuction = (await ethers.getContractAt(
-      "EditionsAuction",
-      EditionsAuctionContract.address
-    )) as EditionsAuction;
+    DutchAuctionDrop = (await ethers.getContractAt(
+      "DutchAuctionDrop",
+      DutchAuctionDropContract.address
+    )) as DutchAuctionDrop;
 
     const [_curator, _creator, _collector] = await ethers.getSigners();
     curator = _curator;
@@ -224,17 +224,17 @@ describe("EditionsAuction", () => {
       weth = await deployWETH()
       // deposit WETH - enough for 100 editons at max price
       await weth.connect(collector).deposit({ value: ethers.utils.parseEther("40.0") });
-      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("40.0"))
+      await weth.connect(collector).approve(DutchAuctionDrop.address, ethers.utils.parseEther("40.0"))
 
       const options =  await genarateAuctionParams(true)
       await createAuction(creator, options)
 
-      auction = await EditionsAuction.auctions(0)
+      auction = await DutchAuctionDrop.auctions(0)
       await StandardProject.connect(creator)
-        .setApprovedMinter(EditionsAuction.address, true)
+        .setApprovedMinter(DutchAuctionDrop.address, true)
 
       if(!auction.approved){
-        await EditionsAuction.connect(curator).setAuctionApproval(0, true)
+        await DutchAuctionDrop.connect(curator).setAuctionApproval(0, true)
       }
     })
     it("should mint tokens", async () => {
@@ -268,7 +268,7 @@ describe("EditionsAuction", () => {
       ).to.eq(true)
 
       // zero balance locked in contract
-      const contractBalance = await weth.balanceOf(EditionsAuction.address)
+      const contractBalance = await weth.balanceOf(DutchAuctionDrop.address)
       expect(contractBalance).to.eq(ethers.utils.parseEther("0.0"))
     })
 
@@ -294,7 +294,7 @@ describe("EditionsAuction", () => {
       await runAuction(0)
 
       // zero balance locked in contract
-      const contractBalance = await weth.balanceOf(EditionsAuction.address)
+      const contractBalance = await weth.balanceOf(DutchAuctionDrop.address)
       expect(contractBalance).to.eq(ethers.utils.parseEther("0.0"))
     })
   })
@@ -306,17 +306,17 @@ describe("EditionsAuction", () => {
       weth = await deployWETH()
       // deposit WETH - enough for 100 editons at max price
       await weth.connect(collector).deposit({ value: ethers.utils.parseEther("40.0") });
-      await weth.connect(collector).approve(EditionsAuction.address, ethers.utils.parseEther("40.0"))
+      await weth.connect(collector).approve(DutchAuctionDrop.address, ethers.utils.parseEther("40.0"))
 
       const options =  await genarateAuctionParams(false) // no curator
       await createAuction(creator, options)
 
-      auction = await EditionsAuction.auctions(0)
+      auction = await DutchAuctionDrop.auctions(0)
       await StandardProject.connect(creator)
-        .setApprovedMinter(EditionsAuction.address, true)
+        .setApprovedMinter(DutchAuctionDrop.address, true)
 
       if(!auction.approved){
-        await EditionsAuction.connect(curator).setAuctionApproval(0, true)
+        await DutchAuctionDrop.connect(curator).setAuctionApproval(0, true)
       }
     })
     it("should mint tokens", async () => {
@@ -347,7 +347,7 @@ describe("EditionsAuction", () => {
       await runAuction(0)
 
       // zero balance locked in contract
-      const contractBalance = await weth.balanceOf(EditionsAuction.address)
+      const contractBalance = await weth.balanceOf(DutchAuctionDrop.address)
       expect(contractBalance).to.eq(ethers.utils.parseEther("0.0"))
     })
   })
@@ -357,9 +357,9 @@ describe("EditionsAuction", () => {
     let auction: any
     beforeEach(async () => {
       await createAuction()
-      auction = await EditionsAuction.auctions(0)
+      auction = await DutchAuctionDrop.auctions(0)
       await StandardProject.connect(creator)
-        .setApprovedMinter(EditionsAuction.address, true)
+        .setApprovedMinter(DutchAuctionDrop.address, true)
       // goto start of auction
       await mineToTimestamp(auction.startTimestamp)
     })
@@ -368,29 +368,29 @@ describe("EditionsAuction", () => {
 
       // deposit 10 weth
       await weth.connect(collectorA).deposit({ value: ethers.utils.parseEther("2.0") });
-      await weth.connect(collectorA).approve(EditionsAuction.address, ethers.utils.parseEther("2.0"))
+      await weth.connect(collectorA).approve(DutchAuctionDrop.address, ethers.utils.parseEther("2.0"))
 
       await weth.connect(collectorB).deposit({ value: ethers.utils.parseEther("1.0") });
-      await weth.connect(collectorB).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+      await weth.connect(collectorB).approve(DutchAuctionDrop.address, ethers.utils.parseEther("1.0"))
 
       await weth.connect(collectorC).deposit({ value: ethers.utils.parseEther("1.0") });
-      await weth.connect(collectorC).approve(EditionsAuction.address, ethers.utils.parseEther("1.0"))
+      await weth.connect(collectorC).approve(DutchAuctionDrop.address, ethers.utils.parseEther("1.0"))
 
       // pause auto mine
       await setAutoMine(false)
 
       // purchase two edition's
-      await EditionsAuction.connect(collectorA)
+      await DutchAuctionDrop.connect(collectorA)
         ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
-      await EditionsAuction.connect(collectorA)
+      await DutchAuctionDrop.connect(collectorA)
         ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
 
       // purchase one edition
-      await EditionsAuction.connect(collectorB)
+      await DutchAuctionDrop.connect(collectorB)
         ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("1.0"))
 
       // wrong price
-      await EditionsAuction.connect(collectorC)
+      await DutchAuctionDrop.connect(collectorC)
         ["purchase(uint256,uint256)"](0, ethers.utils.parseEther("0.9"))
 
       // check token balance

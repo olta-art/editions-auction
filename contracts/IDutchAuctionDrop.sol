@@ -11,7 +11,7 @@ struct Project {
   Implementation implementation;
 }
 
-interface IEditionsAuction {
+interface IDutchAuctionDrop {
   struct Auction {
     Project project;
     uint256 startTimestamp;

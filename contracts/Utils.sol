@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
-import {IEditionsAuction} from "./IEditionsAuction.sol";
+import {IDutchAuctionDrop} from "./IDutchAuctionDrop.sol";
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -10,7 +10,7 @@ interface ERC721 {
   function royaltyInfo(uint256, uint256 _salePrice) external view returns (address receiver, uint256 royaltyAmount);
 }
 
-abstract contract Utils is IEditionsAuction {
+abstract contract Utils is IDutchAuctionDrop {
   using SafeMath for uint256;
   using SafeERC20 for IERC20;
 

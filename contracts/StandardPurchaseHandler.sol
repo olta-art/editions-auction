@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
 import {IStandardProject} from "./projects/IStandard.sol";
-import {IEditionsAuction, Project, Implementation} from "./IEditionsAuction.sol";
+import {IDutchAuctionDrop, Project, Implementation} from "./IDutchAuctionDrop.sol";
 import {Utils} from "./Utils.sol";
 
-abstract contract StandardPurchaseHandler is IEditionsAuction, Utils {
+abstract contract StandardPurchaseHandler is IDutchAuctionDrop, Utils {
   function _handleStandardPurchase(uint256 auctionId, Auction memory auction, uint256 value) internal returns (uint256){
     // check edtions contract is standard implementation
     require(

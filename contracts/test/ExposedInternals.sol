@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
-import {EditionsAuction} from "../EditionsAuction.sol";
+import {DutchAuctionDrop} from "../DutchAuctionDrop.sol";
 
 
 // Exposes internal EditionAuction functions for unit tests
 
-contract ExposedInternals is EditionsAuction{
+contract ExposedInternals is DutchAuctionDrop{
     function floor(uint256 value, uint256 unit) public pure returns (uint256) {
         return _floor(value, unit);
     }
