@@ -69,7 +69,7 @@ abstract contract Utils is IDutchAuctionDrop {
     uint256 stepTime = _calcStepTime(auction);
 
     // return startPrice if auction hasn't started yet
-    if(block.timestamp <= auction.startTimestamp.add(stepTime)){
+    if(block.timestamp < auction.startTimestamp.add(stepTime)){
       return auction.startPrice;
     }
 
@@ -80,7 +80,7 @@ abstract contract Utils is IDutchAuctionDrop {
     uint256 stepPrice = _calcStepPrice(auction);
 
     // transalte -1 so endPrice is after auction.duration
-    uint256 price = auction.startPrice.sub(stepPrice.mul(dropNum - 1));
+    uint256 price = auction.startPrice.sub(stepPrice.mul(dropNum));
 
     return _floor(
       price,
