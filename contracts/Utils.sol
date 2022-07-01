@@ -79,7 +79,6 @@ abstract contract Utils is IDutchAuctionDrop {
 
     uint256 stepPrice = _calcStepPrice(auction);
 
-    // transalte -1 so endPrice is after auction.duration
     uint256 price = auction.startPrice.sub(stepPrice.mul(dropNum));
 
     return _floor(
