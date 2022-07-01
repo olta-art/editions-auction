@@ -127,6 +127,12 @@ describe("DutchAuctionDrop", () => {
     creator = _creator;
     collector = _collector;
 
+    // allow anyone to create a project
+    await ProjectCreator.setCreatorApprovals([{
+      id: ethers.constants.AddressZero.toString(),
+      approval: true
+    }])
+
     StandardProject = await createProject()
     weth = await deployWETH()
   })
@@ -260,19 +266,44 @@ describe("DutchAuctionDrop", () => {
     })
 
     it("drops the price at set intervals during auction", async () => {
-      const stepTime = ethers.BigNumber.from(60 * 2)
-      const stepPrice = ethers.utils.parseEther("0.2")
-      for(let i = 1; i <= auction.numberOfPriceDrops; i++){
-        // move the blocks along
-        const time = auction.startTimestamp.add(stepTime.mul(i))
-        await mineToTimestamp(time)
+      const min = 60
 
-        const expectedPrice = auction.startPrice.sub(stepPrice.mul(i - 1))
+      let startTime = auction.startTimestamp
 
-        expect(
-          await DutchAuctionDrop.getSalePrice(0)
-        ).to.eq(expectedPrice)
-      }
+      await mineToTimestamp(startTime)
+      expect(
+        await DutchAuctionDrop.getSalePrice(0)
+      ).to.equal(
+        auction.startPrice
+      )
+
+      await mineToTimestamp(startTime.add(min * 2))
+      expect(
+        await DutchAuctionDrop.getSalePrice(0)
+      ).to.equal(
+        ethers.utils.parseUnits("0.8")
+      )
+
+      await mineToTimestamp(startTime.add(min * 4))
+      expect(
+        await DutchAuctionDrop.getSalePrice(0)
+      ).to.equal(
+        ethers.utils.parseUnits("0.6")
+      )
+
+      await mineToTimestamp(startTime.add(min * 6))
+      expect(
+        await DutchAuctionDrop.getSalePrice(0)
+      ).to.equal(
+        ethers.utils.parseUnits("0.4")
+      )
+
+      await mineToTimestamp(startTime.add(min * 8))
+      expect(
+        await DutchAuctionDrop.getSalePrice(0)
+      ).to.equal(
+        ethers.utils.parseUnits("0.2")
+      )
     })
 
     it("returns quantized price during auction", async () => {
@@ -303,28 +334,28 @@ describe("DutchAuctionDrop", () => {
 
       const startTime = auction2.startTimestamp
 
-      await mineToTimestamp(startTime.add(min * 2))
+      await mineToTimestamp(startTime)
       expect(
         await DutchAuctionDrop.getSalePrice(1)
       ).to.equal(
         startPrice
       )
 
-      await mineToTimestamp(startTime.add(min * 4))
+      await mineToTimestamp(startTime.add(min * 2))
       expect(
         await DutchAuctionDrop.getSalePrice(1)
       ).to.equal(
         ethers.utils.parseUnits("6.8")
       )
 
-      await mineToTimestamp(startTime.add(min * 6))
+      await mineToTimestamp(startTime.add(min * 4))
       expect(
         await DutchAuctionDrop.getSalePrice(1)
       ).to.equal(
         ethers.utils.parseUnits("3.4")
       )
 
-      await mineToTimestamp(startTime.add(min * 8))
+      await mineToTimestamp(startTime.add(min * 6))
       expect(
         await DutchAuctionDrop.getSalePrice(1)
       ).to.equal(
