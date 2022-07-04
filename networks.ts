@@ -12,7 +12,7 @@ if (process.env.DEV_MNEMONIC) {
     url: "https://rpc-mumbai.maticvigil.com",
     accounts: [`0x${process.env.DEV_MNEMONIC}`],
     // Gas price needed because no estimation
-    gasPrice: 8000000000,
+    gasPrice: 34833375662,
   };
   // networks.polygon = {
   //   chainId: 137,
