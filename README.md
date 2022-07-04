@@ -24,7 +24,10 @@ Please reach out to us on [Olta's discord](https://discord.gg/CAXNKzMa5A) if you
 > **Warning:** These contracts are still in development so details are likley to change
 
 The contracts are deployed on mumbai at the following address's
-EditionsAuction: [0xF4baA49b69EA15107d78AD097d2457cDF470E25B](https://mumbai.polygonscan.com/address/0xF4baA49b69EA15107d78AD097d2457cDF470E25B)
+
+~~EditionsAuction: [0xF4baA49b69EA15107d78AD097d2457cDF470E25B](https://mumbai.polygonscan.com/address/0xF4baA49b69EA15107d78AD097d2457cDF470E25B)~~
+
+DutchAuctionDrop: [0x57D9b13B8f5fFA5ba2002891001aBF33FCc4601b](https://mumbai.polygonscan.com/address/0x57D9b13B8f5fFA5ba2002891001aBF33FCc4601b)
 
 ---
 
