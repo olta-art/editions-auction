@@ -208,6 +208,12 @@ describe("DutchAuctionDrop", () => {
     creatorAddress = await creator.getAddress();
     collectorAddress = await collector.getAddress();
 
+    // allow anyone to create a project
+    await ProjectCreator.setCreatorApprovals([{
+      id: ethers.constants.AddressZero.toString(),
+      approval: true
+    }])
+
     StandardProject = await createProject()
     weth = await deployWETH()
   })
