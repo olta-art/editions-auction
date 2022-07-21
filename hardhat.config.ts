@@ -2,6 +2,7 @@ import "@nomiclabs/hardhat-waffle";
 import "@typechain/hardhat";
 import "hardhat-gas-reporter";
 import "hardhat-deploy";
+import "hardhat-abi-exporter";
 import "@nomiclabs/hardhat-etherscan";
 import { HardhatUserConfig } from "hardhat/config";
 import networks from './networks';
@@ -16,6 +17,25 @@ const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
+    // @ts-expect-error
+    customChains: [
+      {
+        network: "mumbai",
+        chainId: 80001,
+        urls: {
+          apiURL: "https://api-testnet.polygonscan.com",
+          browserURL: "https://mumbai.polygonscan.com"
+        }
+      },
+      {
+        network: "polygon",
+        chainId: 137,
+        urls: {
+          apiURL: "https://api.polygonscan.com",
+          browserURL: "https://polygonscan.com"
+        }
+      }
+    ]
   },
   gasReporter: {
     currency: 'GBP',
@@ -58,16 +78,16 @@ const config: HardhatUserConfig = {
   },
   external: {
     // note: comment out to deploy to live networks
-    contracts: [
-      {
-        artifacts: process.env.PATH_TO_EDITIONS_CONTRACTS + "artifacts",
-        deploy:  process.env.PATH_TO_EDITIONS_CONTRACTS + "deploy"
-      },
-    ],
-    deployments : {
-      localhost: ["./deployments/localhost"],
-      mumbai: [process.env.REL_PATH_TO_EDITIONS_CONTRACTS + "deployments/mumbai"]
-    }
+    // contracts: [
+    //   {
+    //     artifacts: process.env.PATH_TO_EDITIONS_CONTRACTS + "artifacts",
+    //     deploy:  process.env.PATH_TO_EDITIONS_CONTRACTS + "deploy"
+    //   },
+    // ],
+    // deployments : {
+    //   localhost: ["./deployments/localhost"],
+    //   mumbai: [process.env.REL_PATH_TO_EDITIONS_CONTRACTS + "deployments/mumbai"]
+    // }
   }
 };
 
