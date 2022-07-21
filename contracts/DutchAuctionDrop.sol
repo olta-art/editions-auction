@@ -1,9 +1,3 @@
-// Sketch of dutch auction drop mechanic for Zora NFT editions
-// WIP do not use!
-
-// TODO: rentrence checks (see auction house contract)
-// TODO: documentation
-
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity 0.8.6;
 import {SafeMath} from "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -105,10 +99,6 @@ contract DutchAuctionDrop is
       ),
       "Doesn't support chosen Editions interface"
     );
-
-    // TODO: require(IStandardProject(editionContract).numberCanMint() != type(uint256).max, "Editions must be a limited number")
-    // TODO: require this contract is approved ??
-    // TODO: require curator rolaty not too high
 
     address creator = IStandardProject(project.id).owner();
     require(msg.sender == creator, "Caller must be creator of project");
