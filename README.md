@@ -1,31 +1,20 @@
-# Olta Editions Auction (WIP)
-
-This is a work in progress please don't use :)
+# Olta Dutch Auction Drop
 
 ### What is this contract?
-`EditionsAuction` is an auction house that can be used for the initial sale of [Zora NFT Edition contracts](https://github.com/ourzora/nft-editions). Heavily inspired by [Zora's Auction House](https://github.com/ourzora/auction-house) and artblocks dutch auction mechanic. Auctions are run in erc-20 tokens
-
-The current intetion is to deploy on mumbai testnet ASAP
+`DutchAuctionDrop` is an auction house that can be used for the initial sale/drop of [Olta NFT Editions](https://github.com/olta-art/olta-nft-editions). Heavily inspired by [Zora's Auction House](https://github.com/ourzora/auction-house) and artblocks dutch auction mechanic. Auctions are run in erc-20 tokens
 
 Please reach out to us on [Olta's discord](https://discord.gg/CAXNKzMa5A) if you want to help out. Or feel free to raise an issue.
 
-### TODO's:
-
-- [x] Make ERC-20 comptable
-- [x] curator assigned when creating an auction rather than on construction?
-- [x] curator approval
-- [x] mumbai deployment
-- [ ] polygon deployment
-
 ---
+
+## Polygon Deployment
+| Name | Address |
+|---|---|
+| DutchAuctionDrop | [0xfd63d938F82C94a30D940475f572ec10214ed907](https://polygonscan.com/address/0xfd63d938F82C94a30D940475f572ec10214ed907) |
 
 ## Mumbai Deployment
 
-> **Warning:** These contracts are still in development so details are likley to change
-
 The contracts are deployed on mumbai at the following address's
-
-~~EditionsAuction: [0xF4baA49b69EA15107d78AD097d2457cDF470E25B](https://mumbai.polygonscan.com/address/0xF4baA49b69EA15107d78AD097d2457cDF470E25B)~~
 
 DutchAuctionDrop: [0x57D9b13B8f5fFA5ba2002891001aBF33FCc4601b](https://mumbai.polygonscan.com/address/0x57D9b13B8f5fFA5ba2002891001aBF33FCc4601b)
 
