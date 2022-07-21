@@ -1,7 +1,7 @@
 {
-  "name": "editions-auction",
+  "name": "dutch-auction-drop",
   "version": "0.1.0",
-  "description": "A drop mechanic for zora's edition NFT's",
+  "description": "A dutch auction drop mechanic for Olta's edition NFT's",
   "main": "index.js",
   "author": "Olta.art",
   "license": "GPL-3.0",
